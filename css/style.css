@@ -80,3 +80,11 @@ section textarea {
     height:100%;
     width:100%;
 }
+
+#popover_message {
+    position:absolute;
+    width:auto;
+    height:auto;
+    color:green;
+    font-size:25px;
+}
