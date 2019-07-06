@@ -54,7 +54,7 @@ const validate_local_path = function (path, request) {
 
 const wrap_request = function(request) {
     let url = request.url;
-    // argument checks and default
+    // incomming url checks - anything invalid changes to default
     if (typeof url !== "string" || 
         url.length === 0 || 
         url === "/" || 
