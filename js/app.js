@@ -2,12 +2,15 @@ const App = (function () {
     "use strict"
 
     const LOCAL_STORAGE_KEY = "secpad_data";
-    const EDIT_COUNTDOWN_TO_SAVE = 3;
+    const EDIT_COUNTDOWN_TO_SAVE = 2;
     const GLOBAL_INTERVAL_MILLISECONDS = 1000;
+    const LOG_DEBUG = 10;
+    const LOG_ERROR = 1;
+    const LOG_OFF = 0;
 
     let sections = [],
         nav = [],
-        logging_on = true,
+        log_level = LOG_OFF,
         animation_queue = [],
         animation_time = 0,
         interval_id,
@@ -23,9 +26,9 @@ const App = (function () {
         el_filename_input,
         el_popover_message;
     
-    const log = function(message) {
-        if (logging_on) {
-            console.log(message);
+    const log = function(level, message_func) {
+        if (level <= log_level && typeof message_func === "function") {
+            console.log(message_func());
         }
     };
 
@@ -180,7 +183,7 @@ const App = (function () {
                 const hex_value = hashed_value.to_hex_string();
                 if (el_textarea.saved_hashed_value !== hex_value) {
                     el_textarea.saved_hashed_value = hex_value;
-                    console.log(hex_value + " " + text)
+                    log(LOG_DEBUG, () => hex_value + " " + text);
                     set_local(LOCAL_STORAGE_KEY, text);
                 }
             });
