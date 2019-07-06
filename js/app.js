@@ -2,12 +2,15 @@ const App = (function () {
     "use strict"
 
     const LOCAL_STORAGE_KEY = "secpad_data";
+    const EDIT_COUNTDOWN_TO_SAVE = 3;
+    const GLOBAL_INTERVAL_MILLISECONDS = 1000;
 
     let sections = [],
         nav = [],
+        logging_on = true,
         animation_queue = [],
         animation_time = 0,
-        timer,
+        interval_id,
         edit_countdown = 0,
         edit_dirty = false,
         el_loadlocal,
@@ -19,6 +22,12 @@ const App = (function () {
         el_filename,
         el_filename_input,
         el_popover_message;
+    
+    const log = function(message) {
+        if (logging_on) {
+            console.log(message);
+        }
+    };
 
     Array.prototype.swap = function(i, j) {
         let temp = this[i];
@@ -33,6 +42,30 @@ const App = (function () {
                 return this.pop();
             }
         }
+    };
+
+    String.prototype.to_arraybuffer = function() {
+        const buffer = new ArrayBuffer(this.length * 2);
+        const bufferView = new Uint16Array(buffer);
+        for (let i = 0, l = this.length; i < l; i++) {
+            bufferView[i] = this.charCodeAt(i);
+        }
+        return buffer;
+    };
+
+    ArrayBuffer.prototype.to_string = function() {
+        return String.fromCharCode.apply(null, new Uint16Array(this));
+    };
+
+    ArrayBuffer.prototype.to_hex_string = function() {
+        return Array.prototype.map.call(new Uint8Array(this), x => ("00" + x.toString(16)).slice(-2)).join('');
+    };
+
+    /*  hash_string_sha256
+        argument[0]: string to be hashed
+        returns: promise with arraybuffer as result*/
+    const hash_string_sha256 = function(to_be_hashed) {
+        return crypto.subtle.digest("SHA-256", to_be_hashed.to_arraybuffer())
     };
 
     const show_section = function (num) {
@@ -131,8 +164,7 @@ const App = (function () {
     };
 
     const el_textarea_edit_handler = function (e) {
-        console.log(e);
-        edit_countdown = 3;
+        edit_countdown = EDIT_COUNTDOWN_TO_SAVE;
         edit_dirty = true;
     };
 
@@ -142,7 +174,16 @@ const App = (function () {
         }
         if (edit_countdown == 0 && edit_dirty) {
             edit_dirty = false;
-            set_local(LOCAL_STORAGE_KEY, el_textarea.value);
+            const text = el_textarea.value;
+            hash_string_sha256(text)
+            .then(hashed_value => {
+                const hex_value = hashed_value.to_hex_string();
+                if (el_textarea.saved_hashed_value !== hex_value) {
+                    el_textarea.saved_hashed_value = hex_value;
+                    console.log(hex_value + " " + text)
+                    set_local(LOCAL_STORAGE_KEY, text);
+                }
+            });
         }
     };
 
@@ -266,7 +307,7 @@ const App = (function () {
         add_keydown_handler(el_textarea, el_textarea_edit_handler);
         add_paste_handler(el_textarea, el_textarea_edit_handler);
 
-        timer = setInterval(timer_tick_handler, 1000);
+        interval_id = setInterval(timer_tick_handler, GLOBAL_INTERVAL_MILLISECONDS);
 
         const stored_value = get_local(LOCAL_STORAGE_KEY);
         if (stored_value) {
