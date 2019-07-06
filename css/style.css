@@ -1,6 +1,31 @@
 * {
     padding:0px;
     margin:0px;
+    border:0px;
+    font-size:16px;
+    color:#607B8B;
+}
+
+.bg_lightseagreen {
+    background-color:#20B2AA;
+}
+.bg_lightskyblue {
+    background-color:#87CEFA;
+}
+.bg_lightskyblue1 {
+    background-color:#B0E2FF;
+}
+.bg_lightskyblue2 {
+    background-color:#A4D3EE;
+}
+.bg_lightskyblue3 {
+    background-color:#8DB6CD;
+}
+.bg_lightskyblue4 {
+    background-color:#607B8B;
+}
+.bg_lightslateblue {
+    background-color:#8470FF;
 }
 
 html, body {
@@ -13,20 +38,45 @@ body {
     grid-template-rows: minmax(auto, auto) 1fr;
 }
 
-nav li {
-    list-style: none;
-    display:inline;
+nav {
+    font-size: 0;
 }
 
-nav button {
-    padding:3px;
+nav div {
+    display:inline-block;
+    font-size:16px;
+}
+
+nav a {
+    padding:5px;
+    border-width:3px;
+    border-style:solid;
+    border-color:#B0E2FF;
+    background-color:#B0E2FF;
+    cursor:pointer;
+    display:inline-block;
+}
+nav a:hover {
+    border-color:#87CEFA;
+    background-color:#87CEFA;
+}
+nav label {
+    cursor:pointer;
+}
+
+nav input[type="text"] {
+    padding:5px;
+}
+
+nav label > input[type="file"] {
+    display:none;
 }
 
 section {
     height:100%;
 }
 
-#sec_2 textarea {
+section textarea {
     height:100%;
     width:100%;
 }

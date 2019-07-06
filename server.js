@@ -2,7 +2,10 @@
 /*
     NOT FOR PRODUCTION!
 
-    This is a simple  nodejs server for local testing
+    This is a simple  nodejs server for local testing though I am
+    attempting to make it more robust as time goes on.
+
+    Right now, it only handles static files with no caching.
 */
 
 const http = require("http");
@@ -68,6 +71,8 @@ const wrap_request = function(request) {
     } else {
         state.path = url;
     }
+
+    state.method = request.method.toUpperCase();
     
     return state;
 };
@@ -81,7 +86,7 @@ const handle_static_file = function(request, response) {
             headers["Content-Type"] = allowed_file_types[request.file_extension].content_type + "; " + content_encoding;    
             response.writeHead(200, headers);
             response.end(data);
-            console.log("200 " + request.url);
+            console.log(request.method + " 200 " + request.url);
         }
     });
 };
@@ -93,21 +98,27 @@ const handle_error = function(request, response, status, error) {
         response.write(error);
     }
     response.end();
-    console.log(status + " " + request.url);
+    console.log(request.method + " " + status + " " + request.url);
 };
 
 const handle_request = function(request, response) {
     request = wrap_request(request);
 
+    if (request.method !== "GET") {
+        handle_error(request, response, 405, "only GET is allowed at this time.");
+    }
+
     // if the path has invalid chars, refuse to process any further
-    if (validate_path_chars(request.path)) {
+    else if (validate_path_chars(request.path)) {
         if (validate_local_path(request.path, request)) {
             handle_static_file(request, response);
         } else {
             // maybe we allow some kind of api call in the future
             handle_error(request, response, 404);
         }
-    } else {
+    } 
+    
+    else {
         handle_error(request, response, 400, "invalid request path.");
     }
 };

@@ -7,20 +7,14 @@
 </head>
 <body onload="App.start()">
     <nav>
-        <ul>
-            <li><button id="btn_create">Create New</button></li>
-            <li><button id="btn_loadlocal">Load Local</button></li>
-            <li><button id="btn_savelocal">Save Local</button></li>
-        </ul>
+        <div id="loadlocal"><a><label><input type="file" />Load Local</label></a></div>
+        <div id="savelocal"><a>Save Local</a></div>
+        <div id="filename"><input type="text" placeholder="File Name" /></div>
+        <div id="save"><a>Save</a></div>
+        <div id="cancel"><a>Cancel</a></div>
     </nav>
-    <section id="sec_1">
-        <p>No Local Data found. </p>
-    </section>
-    <section id="sec_2">
-        <textarea id="txt_area"></textarea>
-    </section>
-    <section id="sec_3">
-        <input id="file_input" type="file" />
+    <section>
+        <textarea id="txtarea"></textarea>
     </section>
 </body>
 </html>
