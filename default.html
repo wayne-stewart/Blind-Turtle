@@ -8,30 +8,61 @@
 </head>
 <body onload="App.start()">
     <nav>
-        <div id="nav_loadlocal"><a><label><input type="file" />Load from File</label></a></div>
-        <div id="nav_savelocal"><a>Export to File</a></div>
-        <div id="nav_github"><a title="Set Github as a storage location.">Connect Github</a></div>
-        <div id="nav_deauthorize"><a title="Clears all local storage and the global password">Deauthorize</a></div>
-        <div id="nav_save"><a>Save</a></div>
-        <div id="nav_authenticate"><a>Authenticate</a></div>
-        <div id="nav_cancel"><a>Cancel</a></div>
+        <div id="nav_loadlocal"><a title="Load from File"><label><input type="file" />Load from File</label></a></div>
+        <div id="nav_savelocal"><a title="Export to File">Export to File</a></div>
+        <div id="nav_github"><a title="Connect Github - Set Github as a storage location.">Connect Github</a></div>
+        <div id="nav_deauthorize"><a title="Deauthorize - Clears all local storage and the global password">Deauthorize</a></div>
+        <div id="nav_about"><a title="About">About</a></div>
+        <div id="nav_save"><a title="Save">Save</a></div>
+        <div id="nav_authenticate"><a title="Authenticate">Authenticate</a></div>
+        <div id="nav_cancel"><a title="Cancel">Cancel</a></div>
+        <div id="nav_close"><a title="Close">Close</a></div>
     </nav>
     <section id="view_doc">
         <!--TODO: replace with an element with contenteditable-->
         <textarea id="view_doc_text"></textarea>
     </section>
     <section id="view_authenticate">
-        <div class="form-control"><input id="view_authenticate_password" type="password" placeholder="Password" /></div>
-        <p id="view_authenticate_error" class="red"></p>
+        <div>
+            <div class="form-control"><input id="view_authenticate_password" type="password" placeholder="Password" /></div>
+            <p id="view_authenticate_error" class="red"></p>
+        </div>
     </section>
     <section id="view_savelocal">
-        <div class="form-control"><input id="view_savelocal_filename" type="text" placeholder="File Name" /></div>
-        <div class="form-control"><input id="view_savelocal_password" type="password" placeholder="Password" /></div>
-        <p>
-            If no file name is specified a default will be used.<br />
-            If no password is set, the file will be saved with no encryption.
-        </p>
-        <p id="view_savelocal_error" class="red"></p>
+        <div>
+            <div class="form-control"><input id="view_savelocal_filename" type="text" placeholder="File Name" /></div>
+            <div class="form-control"><input id="view_savelocal_password" type="password" placeholder="Password" /></div>
+            <p>
+                If no file name is specified a default will be used.<br />
+                While a password is not required, it is HIGHLY recommended you use a strong one.
+            </p>
+            <p id="view_savelocal_error" class="red"></p>
+        </div>
+    </section>
+    <section id="view_about">
+        <div>
+            <p><label>Name:</label>SecPad</p>
+            <p><label>Version:</label>0.1</p>
+            <label>Description:</label>
+            <p class="indent">
+                The goal of this software is to provide means for securing private information
+                like credit cards and passwords. You can choose to save the files locally or
+                choose your own store that can be synced across devices. This software is built 
+                with the principle of ZERO server trust. The server has no capability to 
+                unencrypt your document. If you lose your password, there is no possibility 
+                of data recovery ( outside possibly some professional cryptanalysis services. )
+            </p>
+            <label>License:</label>
+            <p class="indent">
+                THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+                IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+                FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+                AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+                LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+                OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+                SOFTWARE.
+            </p>
+        </div>
     </section>
     <div id="popover_message"></div>
 </body>

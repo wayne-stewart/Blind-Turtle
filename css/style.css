@@ -83,10 +83,15 @@ nav label > input[type="file"] {
 
 section {
     height:100%;
+}
+
+section > div {
     padding:10px;
+    /* display:inline-block; */
 }
 
 section textarea {
+    padding:10px;
     height:100%;
     width:100%;
 }
@@ -101,7 +106,6 @@ section textarea {
 .form-control {
     display:block;
     margin-bottom:10px;
-
 }
 
 .form-control > input {
@@ -116,4 +120,14 @@ section textarea {
 
 .red {
     color:red;
+}
+
+#view_about p.indent {
+    padding-left:30px;
+}
+
+#view_about label {
+    display:inline-block;
+    font-weight:bold;
+    min-width: 75px;
 }

@@ -16,7 +16,8 @@ const PORT = 8080;
 const allowed_file_types = {
     "html": { content_type: "text/html" },
     "js": { content_type: "application/javascript" },
-    "css": { content_type: "text/css" }
+    "css": { content_type: "text/css" },
+    "map": { content_type: "text/plain" }
 };
 
 const content_encoding = "charset=UTF-8";
