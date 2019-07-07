@@ -16,6 +16,10 @@ const App = (function () {
         interval_id,
         edit_countdown = 0,
         edit_dirty = false,
+        password = "",
+        el_docview,
+        el_configview,
+        el_config,
         el_loadlocal,
         el_loadlocal_file,
         el_savelocal,
@@ -24,7 +28,9 @@ const App = (function () {
         el_textarea,
         el_filename,
         el_filename_input,
-        el_popover_message;
+        el_popover_message,
+        el_configview_password,
+        el_configview_password_input;
     
     const log = function(level, message_func) {
         if (level <= log_level && typeof message_func === "function") {
@@ -32,12 +38,19 @@ const App = (function () {
         }
     };
 
+    /*  Array.prototype.swap
+        arguments: the two indexes to swap in the array.
+        returns: undefined */
     Array.prototype.swap = function(i, j) {
         let temp = this[i];
         this[i] = this[j];
         this[j] = temp;
     };
 
+    /*  Array.prototype.remove
+        argument[0]: the item to be removed
+        returns: the item that was removed
+        notes: Element order is not preserved when removing items; */
     Array.prototype.remove = function(item) {
         for(let i = 0; i < this.length; i++) {
             if (this[i] === item) {
@@ -71,15 +84,28 @@ const App = (function () {
         return crypto.subtle.digest("SHA-256", to_be_hashed.to_arraybuffer())
     };
 
-    const show_section = function (num) {
-        for (let i = 0; i < sections.length; i++) {
-            if (i === num - 1) {
-                show(sections[i]);
-            } else {
-                hide(sections[i]);
-            }
-        }
-    };
+    // the CryptoKey api isn't supported on Safari or IE at this time
+    // const encrypt_aes_gcm = function(password, plaintext) {
+    //     const aes_param = { 
+    //         name: "AES-GCM", 
+    //         iv: crypto.getRandomValues(new Uint8Array(12)), 
+    //         additionalData: "secpad-auth".to_arraybuffer(), 
+    //         tagLength: 128
+    //     };
+    //     const encoder = new TextEncoder();
+    //     const encoded = encoder.encode(plaintext);
+    //     const pbkdf2_param = {
+    //         name: "PBKDF2",
+    //         hash: "SHA-256",
+    //         salt: crypto.getRandomValues(new Uint8Array(16)),
+    //         iterations: 3797
+    //     };
+    //     const base_key = crypto.
+    // };
+
+    // const decrypt_aes_gcm = function(password, ciphertext) {
+
+    // };
 
     const dom_query = function (selector, el) {
         if (el) {
@@ -118,6 +144,16 @@ const App = (function () {
         show_saved_to_local_storage();
     };
 
+    const toggle_section = function(el) {
+        for (let i = 0; i < sections.length; i++) {
+            if (sections[i] === el) {
+                show(sections[i]);
+            } else {
+                hide(sections[i]);
+            }
+        }
+    };
+
     const toggle_nav = function (/* variable number of nav element arguments */) {
         for (let i = 0; i < nav.length; i++) {
             hide(nav[i]);
@@ -128,7 +164,19 @@ const App = (function () {
     };
 
     const toggle_nav_init = function () {
-        toggle_nav(el_loadlocal, el_savelocal);
+        toggle_nav(el_config, el_loadlocal, el_savelocal);
+    };
+
+    const el_config_click_handler = function() {
+        toggle_nav(el_save, el_cancel);
+        toggle_section(el_configview);
+        el_configview_password_input.value = password;
+        el_save.save_handler = function() {
+            password = el_configview_password_input.value;
+            el_configview_password_input.value = ""; // for safety
+            toggle_nav_init();
+            toggle_section(el_docview);
+        };
     };
 
     const el_savelocal_click_handler = function () {
@@ -149,11 +197,17 @@ const App = (function () {
     const el_save_click_handler = function () {
         if (typeof el_save.save_handler == "function") {
             el_save.save_handler();
+            // for safety, save_handler needs to be set before being used
+            el_save.save_handler = null;
         }
     };
 
     const el_cancel_click_handler = function () {
+        // for safety, save_handler needs to be set before being used
+        el_save.save_handler = null;
+        el_configview_password_input.value = ""; // for safety
         toggle_nav_init();
+        toggle_section(el_docview);
     };
 
     const el_loadlocal_file_change_handler = function () {
@@ -231,11 +285,11 @@ const App = (function () {
             requestAnimationFrame(animation_loop);
         }
         else if (animation_queue.length > 0) {
-            const elapsed = t - animation_time;
+            const elapsed_from_last_frame = t - animation_time;
             animation_time = t;
             for (let i = 0; i < animation_queue.length; i++) {
                 const item = animation_queue[i];
-                item.elapsed += elapsed;
+                item.elapsed += elapsed_from_last_frame;
                 if (item.elapsed >= item.duration) {
                     item.el.style[item.prop_name] = item.to;
                     animation_queue.remove(item);
@@ -258,7 +312,7 @@ const App = (function () {
         let animation_item = animation_queue.find(item => item.el === el && item.prop_name === prop_name);
         
         // if not found, create a new animation_item
-        if (typeof animation_item === "undefined") {
+        if (typeof animation_item === "undefined" || animation_item === null) {
             animation_item = {
                 el: el, 
                 prop_name: prop_name
@@ -285,10 +339,14 @@ const App = (function () {
         el_popover_message.innerHTML = "Saved to Local Storage";
         show(el_popover_message);
         center(el_popover_message);
+        // animate opacity from 1 to 0 over 1.5 seconds
         animate(el_popover_message, "opacity", 1, 0, 1500, lerp_number, function(){ hide(el_popover_message); });
     };
 
     const start_function = function () {
+        sections.push(el_docview = dom_query("#docview"));
+        sections.push(el_configview = dom_query("#configview"));
+        nav.push(el_config = dom_query("#config"));
         nav.push(el_loadlocal = dom_query("#loadlocal"));
         el_loadlocal_file = dom_query("input", el_loadlocal);
         nav.push(el_savelocal = dom_query("#savelocal"));
@@ -297,11 +355,15 @@ const App = (function () {
         el_textarea = dom_query("#txtarea");
         nav.push(el_filename = dom_query("#filename"));
         el_filename_input = el_filename.querySelector("input");
+        el_configview_password = dom_query("#configview_password");
+        el_configview_password_input = dom_query("input", el_configview_password);
         el_popover_message = dom_query("#popover_message");
         hide(el_popover_message);
 
         toggle_nav_init();
+        toggle_section(el_docview);
 
+        add_click_handler(el_config, el_config_click_handler);
         add_click_handler(el_savelocal, el_savelocal_click_handler);
         add_click_handler(el_save, el_save_click_handler);
         add_click_handler(el_cancel, el_cancel_click_handler);
