@@ -95,7 +95,6 @@ section textarea {
     position:absolute;
     width:auto;
     height:auto;
-    color:green;
     font-size:25px;
 }
 
@@ -109,4 +108,12 @@ section textarea {
     width:100%;
     padding:5px;
     border:1px solid #607B8B;
+}
+
+.green {
+    color:green;
+}
+
+.red {
+    color:red;
 }

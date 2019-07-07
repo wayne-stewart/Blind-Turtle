@@ -1,23 +1,30 @@
 const App = (function () {
     "use strict"
 
-    /* #region GLOBAL VARIABLES */
-    const LOCAL_STORAGE_KEY = "secpad_data";
+    /* #region GLOBAL STATE */
+    const LOCAL_STORAGE_DATA_KEY = "secpad_data";
+    const LOCAL_STORAGE_CONFIG_KEY = "secpad_config";
     const EDIT_COUNTDOWN_TO_SAVE = 2;
     const GLOBAL_INTERVAL_MILLISECONDS = 1000;
     const LOG_DEBUG = 10;
     const LOG_ERROR = 1;
     const LOG_OFF = 0;
 
+        /* application state */
     let sections = [],
         nav = [],
-        log_level = LOG_OFF,
         animation_queue = [],
         animation_time = 0,
         interval_id,
         edit_countdown = 0,
         edit_dirty = false,
+
+        /* user state */
+        log_level = LOG_OFF,
         global_password = "",
+        loaded_cipher_text = null,
+
+        /* dom elements */
         el_view_doc,
         el_view_authenticate,
         el_view_savelocal,
@@ -27,11 +34,15 @@ const App = (function () {
         el_nav_savelocal,
         el_nav_save,
         el_nav_cancel,
+        el_nav_github,
+        el_nav_deauthorize,
         el_view_doc_text,
         el_view_savelocal_filename,
         el_view_savelocal_password,
+        el_view_savelocal_error,
         el_popover_message,
-        el_view_authenticate_password;
+        el_view_authenticate_password,
+        el_view_authenticate_error;
     /* #endregion */
     
     const log = function(level, message_func) {
@@ -81,7 +92,7 @@ const App = (function () {
     };
     /* #endregion */
 
-    /* #region ENCRYPTION */
+    /* #region CRYPTO */
     /*  hash_string_sha256
         argument[0]: string to be hashed
         returns: promise with arraybuffer as result*/
@@ -91,7 +102,7 @@ const App = (function () {
 
     const encrypt = function(password, text) {
         const sjcl_parameters = { mode: "gcm", ts: 128, adata: "secpad-auth", iter: 15000 };
-        return sjcl.encrypt(password, text, sgcl_parameters);
+        return sjcl.encrypt(password, text, sjcl_parameters);
     };
 
     const decrypt = function(password, cipher) {
@@ -182,7 +193,6 @@ const App = (function () {
 
     const set_local = function (key, value) {
         localStorage.setItem(key, value);
-        show_saved_to_local_storage();
     };
     /* #endregion */
 
@@ -276,65 +286,129 @@ const App = (function () {
         toggle_nav(el_nav_loadlocal, el_nav_savelocal);
         toggle_section(el_view_doc);
     };
+
+    const toggle_nav_view_savelocal = function () {
+        toggle_nav(el_nav_save, el_nav_cancel);
+        toggle_section(el_view_savelocal);
+    };
+
+    const toggle_nav_view_authenticate = function () {
+        toggle_nav(el_nav_authenticate, el_nav_cancel);
+        toggle_section(el_view_authenticate);
+    };
     /* #endregion */
 
     /* #region HANDLERS */
-    const el_savelocal_click_handler = function () {
+    const nav_savelocal_click_handler = function () {
         el_view_savelocal_filename.value = "";
-        toggle_nav(el_nav_save, el_nav_cancel);
-        toggle_section(el_view_savelocal);
+        toggle_nav_view_savelocal();
         el_view_savelocal_filename.focus();
-        el_nav_save.save_handler = function () {
-            return new Promise(function(resolve, reject) {
+        el_nav_save.save_handler = nav_savelocal_save_handler;
+        el_nav_cancel.cancel_handler = nav_savelocal_cancel_handler;
+    };
+
+    const nav_savelocal_save_handler = function() {
+        return new Promise(function(resolve, reject) {
+            try {
                 let filename = el_view_savelocal_filename.value;
                 let password = el_view_savelocal_password.value;
                 let text = el_view_doc_text.value;
                 if (filename.length === 0) {
-                    if (password.length > 0) {
-                        filename = "secpad.json"
-                    } else {
-                        filename = "secpad.txt"
-                    }
+                    filename = "secpad.json";
                 }
-                if (password.length > 0) {
-                    text = encrypt(password, text);
-                }
+                text = encrypt(password, text);
                 const file = new File([text], filename, { type: "text/plain; charset=utf=8" });
                 saveAs(file);
                 toggle_nav_view_doc();
                 resolve();
-            });
-        };
+            } catch (ex) {
+                el_view_savelocal_error.innerHTML = ex;
+                reject(ex);
+            }
+
+        });
+    };
+
+    const nav_savelocal_cancel_handler = function() {
+        return new Promise(function(resolve, reject) {
+            toggle_nav_view_doc();
+            resolve();
+        });
     };
 
     const clear_for_safety = function() {
         el_nav_save.save_handler = null;
         el_view_authenticate_password.value = "";
+        el_view_authenticate_error.innerHTML = "";
         el_view_authenticate.auth_handler = null;
+        el_view_savelocal_filename.value = "";
+        el_view_savelocal_password.value = "";
+        el_view_savelocal_error.innerHTML = "";
+        loaded_cipher_text = null;
+        el_nav_save.save_handler = null;
+        el_nav_authenticate.auth_handler = null;
+        el_nav_cancel.save_handler = null;
     };
 
-    const el_save_click_handler = function () {
-        if (typeof el_nav_save.save_handler == "function") {
-            el_nav_save.save_handler().then(clear_for_safety);
+    const nav_save_click_handler = function () {
+        if (typeof el_nav_save.save_handler === "function") {
+            el_nav_save.save_handler()
+                .then(clear_for_safety)
+                .catch((error) => { log(LOG_ERROR, () => error); });
         }
     };
 
-    const el_cancel_click_handler = function () {
-        clear_for_safety();
-        toggle_nav_view_doc();
+    const nav_cancel_click_handler = function () {
+        if (typeof el_nav_cancel.cancel_handler === "function") {
+            el_nav_cancel.cancel_handler()
+                .then(clear_for_safety)
+                .catch((error) => { log(LOG_ERROR, () => error); });
+        }
     };
 
-    const el_loadlocal_file_change_handler = function () {
+    const nav_authenticate_click_handler = function() {
+        if (typeof el_nav_authenticate.auth_handler === "function") {
+            el_nav_authenticate.auth_handler()
+                .then(clear_for_safety)
+                .catch((error) => { log(LOG_ERROR, () => error); });
+        }
+    };
+
+    const nav_loadlocal_file_change_handler = function () {
         if (el_nav_loadlocal_file.files.length > 0) {
             var file_reader = new FileReader();
             file_reader.onload = function () {
-                el_view_doc_text.value = file_reader.result;
+                loaded_cipher_text = file_reader.result;
+                toggle_nav_view_authenticate();
+                el_nav_authenticate.auth_handler = nav_loadlocal_auth_handler;
+                el_nav_cancel.cancel_handler = nav_loadlocal_cancel_handler;
             };
             file_reader.readAsText(el_nav_loadlocal_file.files[0])
         }
     };
 
-    const el_textarea_edit_handler = function (e) {
+    const nav_loadlocal_auth_handler = function() {
+        return new Promise(function(resolve, reject) {
+            try {
+                const text = decrypt(el_view_authenticate_password.value, loaded_cipher_text);
+                el_view_doc_text.value = text;
+                toggle_nav_view_doc();
+                resolve();
+            } catch(ex) {
+                el_view_authenticate_error.innerHTML = ex;
+                reject(ex);
+            }
+        });
+    };
+
+    const nav_loadlocal_cancel_handler = function() {
+        return new Promise(function(resolve, reject) {
+            toggle_nav_view_doc();
+            resolve();
+        });
+    };
+
+    const view_doc_text_edit_handler = function (e) {
         edit_countdown = EDIT_COUNTDOWN_TO_SAVE;
         edit_dirty = true;
     };
@@ -352,20 +426,37 @@ const App = (function () {
                 if (el_view_doc_text.saved_hashed_value !== hex_value) {
                     el_view_doc_text.saved_hashed_value = hex_value;
                     log(LOG_DEBUG, () => hex_value + " " + text);
-                    set_local(LOCAL_STORAGE_KEY, text);
+                    if (global_password) {
+                        text = encrypt(global_password, text);
+                        set_local(LOCAL_STORAGE_DATA_KEY, text);
+                        show_saved_to_local_storage();
+                    } else {
+                        log(LOG_DEBUG, () => "global password not set, local storage save disabled.");
+                    }
                 }
             });
         }
     };
     /* #endregion */
 
-    const show_saved_to_local_storage = function() {
-        el_popover_message.innerHTML = "Saved to Local Storage";
+    /* #region MESSAGES */
+    const show_popover_message = function(message, cssclass, duration) {
+        el_popover_message.innerHTML = message;
+        el_popover_message.className = cssclass;
         show(el_popover_message);
         center(el_popover_message);
         // animate opacity from 1 to 0 over 1.5 seconds
-        animate(el_popover_message, "opacity", 1, 0, 1500, lerp_number, function(){ hide(el_popover_message); });
+        animate(el_popover_message, "opacity", 1, 0, duration, lerp_number, function(){ hide(el_popover_message); });
     };
+
+    const show_saved_to_local_storage = function() {
+        show_popover_message("Saved to Local Storage", "green", 1500);
+    };
+
+    const show_saved_to_local_storage_unencrypted = function() {
+        show_popover_message("Saved to Local Storage UNENCRYPTED", "red", 2000);
+    };
+    /* #endregion */
 
     const start_function = function () {
         sections.push(el_view_doc = dom_query("#view_doc"));
@@ -376,32 +467,39 @@ const App = (function () {
         nav.push(el_nav_savelocal = dom_query("#nav_savelocal"));
         nav.push(el_nav_save = dom_query("#nav_save"));
         nav.push(el_nav_cancel = dom_query("#nav_cancel"));
+        nav.push(el_nav_github = dom_query("#nav_github"));
+        nav.push(el_nav_deauthorize = dom_query("#nav_deauthorize"));
         el_nav_loadlocal_file = dom_query("input", el_nav_loadlocal);
         el_view_doc_text = dom_query("#view_doc_text");
         el_view_authenticate_password = dom_query("#view_authenticate_password");
+        el_view_authenticate_error = dom_query("#view_authenticate_error");
         el_view_savelocal_filename = dom_query("#view_savelocal_filename");
         el_view_savelocal_password = dom_query("#view_savelocal_password");
+        el_view_savelocal_error = dom_query("#view_savelocal_error");
         el_popover_message = dom_query("#popover_message");
         
         // init
         // TODO: handler local saved config
+        clear_for_safety();
         hide(el_popover_message);
         toggle_nav_view_doc();
 
         //add_click_handler(el_nav_authenticate, el_authenticate_click_handler);
-        add_click_handler(el_nav_savelocal, el_savelocal_click_handler);
-        add_click_handler(el_nav_save, el_save_click_handler);
-        add_click_handler(el_nav_cancel, el_cancel_click_handler);
-        add_change_handler(el_nav_loadlocal_file, el_loadlocal_file_change_handler);
-        add_change_handler(el_view_doc_text, el_textarea_edit_handler);
-        add_keydown_handler(el_view_doc_text, el_textarea_edit_handler);
-        add_paste_handler(el_view_doc_text, el_textarea_edit_handler);
+        add_click_handler(el_nav_savelocal, nav_savelocal_click_handler);
+        add_click_handler(el_nav_save, nav_save_click_handler);
+        add_click_handler(el_nav_cancel, nav_cancel_click_handler);
+        add_click_handler(el_nav_authenticate, nav_authenticate_click_handler);
+        add_change_handler(el_nav_loadlocal_file, nav_loadlocal_file_change_handler);
+        add_change_handler(el_view_doc_text, view_doc_text_edit_handler);
+        add_keydown_handler(el_view_doc_text, view_doc_text_edit_handler);
+        add_paste_handler(el_view_doc_text, view_doc_text_edit_handler);
 
         interval_id = setInterval(timer_tick_handler, GLOBAL_INTERVAL_MILLISECONDS);
 
-        const stored_value = get_local(LOCAL_STORAGE_KEY);
-        if (stored_value) {
-            el_view_doc_text.value = stored_value;
+        const stored_data = get_local(LOCAL_STORAGE_DATA_KEY);
+        const stored_config = get_local(LOCAL_STORAGE_CONFIG_KEY);
+        if (stored_data) {
+            el_view_doc_text.value = stored_data;
         }
     };
 

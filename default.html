@@ -10,7 +10,8 @@
     <nav>
         <div id="nav_loadlocal"><a><label><input type="file" />Load from File</label></a></div>
         <div id="nav_savelocal"><a>Export to File</a></div>
-        <div id="nav_github"><a>Connect Github</a></div>
+        <div id="nav_github"><a title="Set Github as a storage location.">Connect Github</a></div>
+        <div id="nav_deauthorize"><a title="Clears all local storage and the global password">Deauthorize</a></div>
         <div id="nav_save"><a>Save</a></div>
         <div id="nav_authenticate"><a>Authenticate</a></div>
         <div id="nav_cancel"><a>Cancel</a></div>
@@ -21,10 +22,16 @@
     </section>
     <section id="view_authenticate">
         <div class="form-control"><input id="view_authenticate_password" type="password" placeholder="Password" /></div>
+        <p id="view_authenticate_error" class="red"></p>
     </section>
     <section id="view_savelocal">
         <div class="form-control"><input id="view_savelocal_filename" type="text" placeholder="File Name" /></div>
         <div class="form-control"><input id="view_savelocal_password" type="password" placeholder="Password" /></div>
+        <p>
+            If no file name is specified a default will be used.<br />
+            If no password is set, the file will be saved with no encryption.
+        </p>
+        <p id="view_savelocal_error" class="red"></p>
     </section>
     <div id="popover_message"></div>
 </body>
