@@ -3,6 +3,7 @@
     margin:0px;
     border:0px;
     font-size:16px;
+    line-height:16px;
     color:#607B8B;
 }
 
@@ -40,11 +41,13 @@ body {
 
 nav {
     font-size: 0;
+    display:flex;
+    flex-wrap:wrap;
 }
 
 nav div {
+    display:flex;
     display:inline-block;
-    font-size:16px;
 }
 
 nav a {
@@ -66,6 +69,9 @@ nav label {
 
 nav input[type="text"] {
     padding:5px;
+    border:3px solid #607B8B;
+    display:inline-block;
+    height:32px;
 }
 
 nav label > input[type="file"] {
@@ -93,4 +99,9 @@ section input {
     height:auto;
     color:green;
     font-size:25px;
+}
+
+.form-control {
+    display:block;
+    margin-bottom:10px;
 }

@@ -16,21 +16,21 @@ const App = (function () {
         interval_id,
         edit_countdown = 0,
         edit_dirty = false,
-        password = "",
-        el_docview,
-        el_configview,
-        el_config,
-        el_loadlocal,
-        el_loadlocal_file,
-        el_savelocal,
-        el_save,
-        el_cancel,
-        el_textarea,
-        el_filename,
-        el_filename_input,
+        global_password = "",
+        el_view_doc,
+        el_view_authenticate,
+        el_view_savelocal,
+        el_nav_authenticate,
+        el_nav_loadlocal,
+        el_nav_loadlocal_file,
+        el_nav_savelocal,
+        el_nav_save,
+        el_nav_cancel,
+        el_view_doc_text,
+        el_view_savelocal_filename,
+        el_view_savelocal_password,
         el_popover_message,
-        el_configview_password,
-        el_configview_password_input;
+        el_view_authenticate_password;
     
     const log = function(level, message_func) {
         if (level <= log_level && typeof message_func === "function") {
@@ -82,6 +82,11 @@ const App = (function () {
         returns: promise with arraybuffer as result*/
     const hash_string_sha256 = function(to_be_hashed) {
         return crypto.subtle.digest("SHA-256", to_be_hashed.to_arraybuffer())
+    };
+
+    const encrypt = function(password, text) {
+        const sjcl_parameters = { mode: "gcm", ts: 128, adata: "secpad-auth", iter: 15000 };
+        sjcl.encrypt(password, text, sgcl_parameters);
     };
 
     // the CryptoKey api isn't supported on Safari or IE at this time
@@ -164,59 +169,58 @@ const App = (function () {
     };
 
     const toggle_nav_init = function () {
-        toggle_nav(el_config, el_loadlocal, el_savelocal);
-    };
-
-    const el_config_click_handler = function() {
-        toggle_nav(el_save, el_cancel);
-        toggle_section(el_configview);
-        el_configview_password_input.value = password;
-        el_save.save_handler = function() {
-            password = el_configview_password_input.value;
-            el_configview_password_input.value = ""; // for safety
-            toggle_nav_init();
-            toggle_section(el_docview);
-        };
+        toggle_nav(el_nav_loadlocal, el_nav_savelocal);
     };
 
     const el_savelocal_click_handler = function () {
-        el_filename_input.value = "";
-        toggle_nav(el_filename, el_save, el_cancel);
-        el_filename_input.focus();
-        el_save.save_handler = function () {
-            let filename = el_filename_input.value;
+        el_view_savelocal_filename.value = "";
+        toggle_nav(el_nav_save, el_nav_cancel);
+        toggle_section(el_view_savelocal);
+        el_view_savelocal_filename.focus();
+        el_nav_save.save_handler = function () {
+            let filename = el_view_savelocal_filename.value;
+            let password = el_view_savelocal_password.value;
+            let text = el_view_doc_text.value;
             if (filename.length === 0) {
-                filename = "secpad.dat"
+                if (password.length > 0) {
+                    filename = "secpad.json"
+                } else {
+                    filename = "secpad.txt"
+                }
             }
-            const file = new File([el_textarea.value], filename, { type: "text/plain; charset=utf=8" });
+            if (password.length > 0) {
+                text = encrypt(password, text);
+            }
+            const file = new File([text], filename, { type: "text/plain; charset=utf=8" });
             saveAs(file);
             toggle_nav_init();
+            toggle_section(el_view_doc);
         };
     };
 
     const el_save_click_handler = function () {
-        if (typeof el_save.save_handler == "function") {
-            el_save.save_handler();
+        if (typeof el_nav_save.save_handler == "function") {
+            el_nav_save.save_handler();
             // for safety, save_handler needs to be set before being used
-            el_save.save_handler = null;
+            el_nav_save.save_handler = null;
         }
     };
 
     const el_cancel_click_handler = function () {
         // for safety, save_handler needs to be set before being used
-        el_save.save_handler = null;
-        el_configview_password_input.value = ""; // for safety
+        el_nav_save.save_handler = null;
+        el_view_config_password.value = ""; // for safety
         toggle_nav_init();
-        toggle_section(el_docview);
+        toggle_section(el_view_doc);
     };
 
     const el_loadlocal_file_change_handler = function () {
-        if (el_loadlocal_file.files.length > 0) {
+        if (el_nav_loadlocal_file.files.length > 0) {
             var file_reader = new FileReader();
             file_reader.onload = function () {
-                el_textarea.value = file_reader.result;
+                el_view_doc_text.value = file_reader.result;
             };
-            file_reader.readAsText(el_loadlocal_file.files[0])
+            file_reader.readAsText(el_nav_loadlocal_file.files[0])
         }
     };
 
@@ -231,12 +235,12 @@ const App = (function () {
         }
         if (edit_countdown == 0 && edit_dirty) {
             edit_dirty = false;
-            const text = el_textarea.value;
+            const text = el_view_doc_text.value;
             hash_string_sha256(text)
             .then(hashed_value => {
                 const hex_value = hashed_value.to_hex_string();
-                if (el_textarea.saved_hashed_value !== hex_value) {
-                    el_textarea.saved_hashed_value = hex_value;
+                if (el_view_doc_text.saved_hashed_value !== hex_value) {
+                    el_view_doc_text.saved_hashed_value = hex_value;
                     log(LOG_DEBUG, () => hex_value + " " + text);
                     set_local(LOCAL_STORAGE_KEY, text);
                 }
@@ -344,39 +348,39 @@ const App = (function () {
     };
 
     const start_function = function () {
-        sections.push(el_docview = dom_query("#docview"));
-        sections.push(el_configview = dom_query("#configview"));
-        nav.push(el_config = dom_query("#config"));
-        nav.push(el_loadlocal = dom_query("#loadlocal"));
-        el_loadlocal_file = dom_query("input", el_loadlocal);
-        nav.push(el_savelocal = dom_query("#savelocal"));
-        nav.push(el_save = dom_query("#save"));
-        nav.push(el_cancel = dom_query("#cancel"));
-        el_textarea = dom_query("#txtarea");
-        nav.push(el_filename = dom_query("#filename"));
-        el_filename_input = el_filename.querySelector("input");
-        el_configview_password = dom_query("#configview_password");
-        el_configview_password_input = dom_query("input", el_configview_password);
+        sections.push(el_view_doc = dom_query("#view_doc"));
+        sections.push(el_view_authenticate = dom_query("#view_authenticate"));
+        sections.push(el_view_savelocal = dom_query("#view_savelocal"));
+        nav.push(el_nav_authenticate = dom_query("#nav_authenticate"));
+        nav.push(el_nav_loadlocal = dom_query("#nav_loadlocal"));
+        nav.push(el_nav_savelocal = dom_query("#nav_savelocal"));
+        nav.push(el_nav_save = dom_query("#nav_save"));
+        nav.push(el_nav_cancel = dom_query("#nav_cancel"));
+        el_nav_loadlocal_file = dom_query("input", el_nav_loadlocal);
+        el_view_doc_text = dom_query("#view_doc_text");
+        el_view_authenticate_password = dom_query("#view_authenticate_password");
+        el_view_savelocal_filename = dom_query("#view_savelocal_filename");
+        el_view_savelocal_password = dom_query("#view_savelocal_password");
         el_popover_message = dom_query("#popover_message");
+        
         hide(el_popover_message);
-
         toggle_nav_init();
-        toggle_section(el_docview);
+        toggle_section(el_view_doc);
 
-        add_click_handler(el_config, el_config_click_handler);
-        add_click_handler(el_savelocal, el_savelocal_click_handler);
-        add_click_handler(el_save, el_save_click_handler);
-        add_click_handler(el_cancel, el_cancel_click_handler);
-        add_change_handler(el_loadlocal_file, el_loadlocal_file_change_handler);
-        add_change_handler(el_textarea, el_textarea_edit_handler);
-        add_keydown_handler(el_textarea, el_textarea_edit_handler);
-        add_paste_handler(el_textarea, el_textarea_edit_handler);
+        //add_click_handler(el_nav_authenticate, el_authenticate_click_handler);
+        add_click_handler(el_nav_savelocal, el_savelocal_click_handler);
+        add_click_handler(el_nav_save, el_save_click_handler);
+        add_click_handler(el_nav_cancel, el_cancel_click_handler);
+        add_change_handler(el_nav_loadlocal_file, el_loadlocal_file_change_handler);
+        add_change_handler(el_view_doc_text, el_textarea_edit_handler);
+        add_keydown_handler(el_view_doc_text, el_textarea_edit_handler);
+        add_paste_handler(el_view_doc_text, el_textarea_edit_handler);
 
         interval_id = setInterval(timer_tick_handler, GLOBAL_INTERVAL_MILLISECONDS);
 
         const stored_value = get_local(LOCAL_STORAGE_KEY);
         if (stored_value) {
-            el_textarea.value = stored_value;
+            el_view_doc_text.value = stored_value;
         }
     };
 

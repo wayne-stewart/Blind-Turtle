@@ -8,19 +8,22 @@
 </head>
 <body onload="App.start()">
     <nav>
-        <div id="config"><a>Config</a></div>
-        <div id="loadlocal"><a><label><input type="file" />Load Local</label></a></div>
-        <div id="savelocal"><a>Save Local</a></div>
-        <div id="filename"><input type="text" placeholder="File Name" /></div>
-        <div id="save"><a>Save</a></div>
-        <div id="cancel"><a>Cancel</a></div>
+        <div id="nav_loadlocal"><a><label><input type="file" />Load from File</label></a></div>
+        <div id="nav_savelocal"><a>Export to File</a></div>
+        <div id="nav_save"><a>Save</a></div>
+        <div id="nav_authenticate"><a>Authenticate</a></div>
+        <div id="nav_cancel"><a>Cancel</a></div>
     </nav>
-    <section id="docview">
+    <section id="view_doc">
         <!--TODO: replace with an element with contenteditable-->
-        <textarea id="txtarea"></textarea>
+        <textarea id="view_doc_text"></textarea>
     </section>
-    <section id="configview">
-        <div id="configview_password"><input type="password" placeholder="Password" /></div>
+    <section id="view_authenticate">
+        <div class="form-control"><input id="view_authenticate_password" type="password" placeholder="Password" /></div>
+    </section>
+    <section id="view_savelocal">
+        <div class="form-control"><input id="view_savelocal_filename" type="text" placeholder="File Name" /></div>
+        <div class="form-control"><input id="view_savelocal_password" type="password" placeholder="Password" /></div>
     </section>
     <div id="popover_message"></div>
 </body>
