@@ -17,4 +17,5 @@
 * Add Google Drive integration
 * Add iCloud integration
 * Harden node server
+    * node server is only used for testing at the moment. Project is designed to be hosted on Github.
 * Add ability to store documents with node server.
