@@ -13,6 +13,7 @@
 - [ ] add tests
 - [ ] add password generator
 - [ ] add structured document capability like a key/value store.
+- [ ] add automatic copy to clipboard and removal from clipboard
 
 # INCREASE SECURITY
 - [ ] Add second encryption layer to saved document ( twofish, threefish )
