@@ -1,22 +1,18 @@
 
 # HIGH PRIORITY
-* Add Github integration
-    * login, sync, store configuration locally encrypted
-* Make about page first to show when accessing from a device/browser that does not have local data..
-* Add Some instructions to About page
-* Add library attribution to About page
-* Change doc view from textarea to a contenteditable container
-    * this will help with search results, and give more formatting/display capabilities
-* Add Search
-    * search will happen automatically as soon as keys are pressed in the search box
-* Add Next/Previous Search result navigation
-* Optimize for mobile and desktop
-* Add tabbed interface to open multiple documents at once
+[ ] Add Github integration
+[ ] Make about page first to show when accessing from a device/browser that does not have local data..
+[ ] Add Some instructions to About page
+[x] Add library attribution to About page (done)
+[ ] Change doc view from textarea to a contenteditable container
+[ ] Add Search
+[ ] Add Next/Previous Search result navigation
+[ ] Optimize for mobile and desktop
+[ ] Add tabbed interface to open multiple documents at once
 
 # LOW PRIORITY
-* Add Dropbox integration
-* Add Google Drive integration
-* Add iCloud integration
-* Harden node server
-    * node server is only used for testing at the moment. Project is designed to be hosted on Github.
-* Add ability to store documents with node server.
+[ ] Add Dropbox integration
+[ ] Add Google Drive integration
+[ ] Add iCloud integration
+[ ] Harden node server
+[ ] Add ability to store documents with node server.
