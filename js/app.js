@@ -492,7 +492,7 @@ const App = (function () {
     };
     /* #endregion */
 
-    const start_function = function () {
+    const app_start = function () {
         sections.push(el_view_doc = dom_query("#view_doc"));
         sections.push(el_view_authenticate = dom_query("#view_authenticate"));
         sections.push(el_view_savelocal = dom_query("#view_savelocal"));
@@ -542,8 +542,10 @@ const App = (function () {
         }
     };
 
-    return {
-        start: start_function
-    };
+    if (document.readyState === "complete" || document.readyState === "loaded") {
+        app_start();
+    } else {
+        window.addEventListener("DOMContentLoaded", app_start);
+    }
 
 })();
