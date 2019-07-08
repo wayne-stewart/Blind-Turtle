@@ -10,6 +10,7 @@
 * Add Search
     * search will happen automatically as soon as keys are pressed in the search box
 * Add Next/Previous Search result navigation
+* Optimize for mobile and desktop
 * Add tabbed interface to open multiple documents at once
 
 # LOW PRIORITY
