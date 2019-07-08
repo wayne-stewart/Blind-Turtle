@@ -227,7 +227,7 @@ const App = (function () {
                         item.finished_callback();
                     }
                 } else {
-                    item.el.style[item.prop_name] = item.timing_callback(item.from, item.to, item.duration, item.elapsed);
+                    item.el.style[item.prop_name] = item.interpolation_delegate(item.from, item.to, item.duration, item.elapsed);
                 }
             }
             requestAnimationFrame(animation_loop);
@@ -237,7 +237,7 @@ const App = (function () {
         }
     };
 
-    const animate = function (el, prop_name, from, to, duration, timing_callback, finished_callback) {
+    const animate = function (el, prop_name, from, to, duration, interpolation_delegate, finished_callback) {
         // check for existing animation with same el and property
         let animation_item = animation_queue.find(item => item.el === el && item.prop_name === prop_name);
         
@@ -254,7 +254,7 @@ const App = (function () {
         animation_item.to = to;
         animation_item.duration = duration;
         animation_item.elapsed = 0;
-        animation_item.timing_callback = timing_callback;
+        animation_item.interpolation_delegate = interpolation_delegate;
         animation_item.finished_callback = finished_callback;
 
         el.style[prop_name] = from;
