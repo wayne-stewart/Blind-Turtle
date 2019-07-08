@@ -125,9 +125,11 @@ section textarea {
 #view_about p.indent {
     padding-left:30px;
 }
+#view_about p.indent2 {
+    padding-left:60px;
+}
 
 #view_about label {
     display:inline-block;
     font-weight:bold;
-    min-width: 75px;
 }
