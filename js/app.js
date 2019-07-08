@@ -481,10 +481,6 @@ const App = (function () {
     const show_saved_to_local_storage = function() {
         show_popover_message("Saved to Local Storage", "green", 1500);
     };
-
-    const show_saved_to_local_storage_unencrypted = function() {
-        show_popover_message("Saved to Local Storage UNENCRYPTED", "red", 2000);
-    };
     /* #endregion */
 
     const start_function = function () {
