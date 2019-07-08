@@ -77,6 +77,9 @@ const App = (function () {
         }
     };
 
+    /*  String.prototype.to_arraybuffer
+        arguments: none
+        returns: a new instance of an ArrayBuffer filled with values copied from the string */
     String.prototype.to_arraybuffer = function() {
         const buffer = new ArrayBuffer(this.length * 2);
         const bufferView = new Uint16Array(buffer);
@@ -86,10 +89,16 @@ const App = (function () {
         return buffer;
     };
 
+    /*  ArrayBuffer.prototype.to_string
+        arguments: none
+        returns: a string filled with values copied from the ArrayBuffer */
     ArrayBuffer.prototype.to_string = function() {
         return String.fromCharCode.apply(null, new Uint16Array(this));
     };
 
+    /*  ArrayBuffer.prototype.to_hex_string
+        arguments: none
+        returns: a string filled with hex values values copied from the ArrayBuffer */
     ArrayBuffer.prototype.to_hex_string = function() {
         return Array.prototype.map.call(new Uint8Array(this), x => ("00" + x.toString(16)).slice(-2)).join('');
     };
