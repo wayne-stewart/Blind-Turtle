@@ -128,8 +128,15 @@ const App = (function () {
     const is_function       = obj => (typeof obj === "function");
     const is_instantiated   = obj => !(obj === null || typeof obj === "undefined");
     const swap              = (array, i, j) => { let temp = array[i]; array[i] = array[j]; array[j] = temp; };
-    const each              = (array, callback) => { for (let i = 0; i < array.length; i++) callback(array, i); };
-    const remove            = (array, item) => each(array, (ar,i) => { if (ar[i] === item) { swap(ar, i, ar.length - 1); return ar.pop(); }});
+    const each              = (array, callback) => { for (let i = 0; i < array.length; i++) callback(array[i], i, array); };
+    const remove            = (array, item) => {
+        for(let i = 0; i < array.length; i++) {
+            if (array[i] === item) {
+                swap(array, i, array.length - 1);
+                array.pop();
+            }
+        }
+    };
 
     const dom_query = function (selector, el) {
         if (el) {
