@@ -49,33 +49,12 @@ const App = (function () {
     /* #endregion */
     
     const log = function(level, message_func) {
-        if (level <= log_level && typeof message_func === "function") {
+        if (level <= log_level && is_function(message_func)) {
             console.log(message_func());
         }
     };
 
     /* #region EXTENSIONS */
-    /*  Array.prototype.swap
-        arguments: the two indexes to swap in the array.
-        returns: undefined */
-    Array.prototype.swap = function(i, j) {
-        let temp = this[i];
-        this[i] = this[j];
-        this[j] = temp;
-    };
-
-    /*  Array.prototype.remove
-        argument[0]: the item to be removed
-        returns: the item that was removed
-        notes: Element order is not preserved when removing items; */
-    Array.prototype.remove = function(item) {
-        for(let i = 0; i < this.length; i++) {
-            if (this[i] === item) {
-                this.swap(i, this.length - 1);
-                return this.pop();
-            }
-        }
-    };
 
     /*  String.prototype.to_arraybuffer
         arguments: none
@@ -146,6 +125,12 @@ const App = (function () {
     /* #endregion */
 
     /* #region DOM WRAPPERS */
+    const is_function       = obj => (typeof obj === "function");
+    const is_instantiated   = obj => !(obj === null || typeof obj === "undefined");
+    const swap              = (array, i, j) => { let temp = array[i]; array[i] = array[j]; array[j] = temp; };
+    const each              = (array, callback) => { for (let i = 0; i < array.length; i++) callback(array, i); };
+    const remove            = (array, item) => each(array, (ar,i) => { if (ar[i] === item) { swap(ar, i, ar.length - 1); return ar.pop(); }});
+
     const dom_query = function (selector, el) {
         if (el) {
             return el.querySelector(selector);
@@ -155,7 +140,7 @@ const App = (function () {
     };
 
     const center = function(el, center_on) {
-        if (typeof center_on === "undefined") {
+        if (!is_instantiated(center_on)) {
             center_on = document.body;
         }
         el.style.top = center_on.style.top + center_on.clientHeight / 2 - el.clientHeight / 2;
@@ -231,7 +216,7 @@ const App = (function () {
                 item.elapsed += elapsed_from_last_frame;
                 if (item.elapsed >= item.duration) {
                     item.el.style[item.prop_name] = item.to;
-                    animation_queue.remove(item);
+                    remove(animation_queue, item);
                     if (item.finished_callback) {
                         item.finished_callback();
                     }
@@ -369,7 +354,7 @@ const App = (function () {
     };
 
     const nav_save_click_handler = function () {
-        if (typeof el_nav_save.save_handler === "function") {
+        if (is_function(el_nav_save.save_handler)) {
             el_nav_save.save_handler()
                 .then(clear_for_safety)
                 .catch((error) => { log(LOG_ERROR, () => error); });
@@ -377,7 +362,7 @@ const App = (function () {
     };
 
     const nav_cancel_click_handler = function () {
-        if (typeof el_nav_cancel.cancel_handler === "function") {
+        if (is_function(el_nav_cancel.cancel_handler)) {
             el_nav_cancel.cancel_handler()
                 .then(clear_for_safety)
                 .catch((error) => { log(LOG_ERROR, () => error); });
@@ -385,7 +370,7 @@ const App = (function () {
     };
 
     const nav_close_click_handler = function () {
-        if (typeof el_nav_close.close_handler === "function") {
+        if (is_function(el_nav_close.close_handler)) {
             el_nav_close.close_handler()
                 .then(clear_for_safety)
                 .catch((error) => { log(LOG_ERROR, () => error); });
@@ -405,7 +390,7 @@ const App = (function () {
     };
 
     const nav_authenticate_click_handler = function() {
-        if (typeof el_nav_authenticate.auth_handler === "function") {
+        if (is_function(el_nav_authenticate.auth_handler)) {
             el_nav_authenticate.auth_handler()
                 .then(clear_for_safety)
                 .catch((error) => { log(LOG_ERROR, () => error); });
