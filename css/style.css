@@ -43,6 +43,7 @@ nav {
     font-size: 0;
     display:flex;
     flex-wrap:wrap;
+    background-color:#B0E2FF;
 }
 
 nav div {

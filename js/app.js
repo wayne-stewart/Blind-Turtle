@@ -4,6 +4,7 @@ const App = (function () {
     /* #region GLOBAL STATE */
     const LOCAL_STORAGE_DATA_KEY = "secpad_data";
     const LOCAL_STORAGE_CONFIG_KEY = "secpad_config";
+    const GITHUB_REPO_URL = "https://api.github.com/repos";
     const EDIT_COUNTDOWN_TO_SAVE = 2;
     const GLOBAL_INTERVAL_MILLISECONDS = 1000;
     const LOG_DEBUG = 10;
@@ -20,7 +21,7 @@ const App = (function () {
         edit_dirty = false,
 
         /* user state */
-        log_level = LOG_OFF,
+        log_level = LOG_ERROR,
         global_password = "",
         loaded_cipher_text = null,
 
@@ -29,6 +30,7 @@ const App = (function () {
         el_view_authenticate,
         el_view_savelocal,
         el_view_about,
+        el_view_github,
         el_nav_authenticate,
         el_nav_loadlocal,
         el_nav_loadlocal_file,
@@ -45,7 +47,12 @@ const App = (function () {
         el_view_savelocal_error,
         el_popover_message,
         el_view_authenticate_password,
-        el_view_authenticate_error;
+        el_view_authenticate_error,
+        el_view_github_master_password,
+        el_view_github_confirm_password,
+        el_view_github_username,
+        el_view_github_password,
+        el_view_github_reponame;
     /* #endregion */
     
     const log = function(level, message_func) {
@@ -128,7 +135,11 @@ const App = (function () {
     const is_function       = obj => (typeof obj === "function");
     const is_instantiated   = obj => !(obj === null || typeof obj === "undefined");
     const swap              = (array, i, j) => { let temp = array[i]; array[i] = array[j]; array[j] = temp; };
-    const each              = (array, callback) => { for (let i = 0; i < array.length; i++) callback(array[i], i, array); };
+    const each              = (array, callback) => { 
+        for (let i = 0; i < array.length; i++) {
+            callback(array[i], i, array);
+        }
+    };
     const remove            = (array, item) => {
         for(let i = 0; i < array.length; i++) {
             if (array[i] === item) {
@@ -139,10 +150,18 @@ const App = (function () {
     };
 
     const dom_query = function (selector, el) {
+        let result;
         if (el) {
-            return el.querySelector(selector);
+            result = el.querySelectorAll(selector);
         } else {
-            return document.querySelector(selector);
+            result = document.querySelectorAll(selector);
+        }
+        if (result) {
+            if (result.length === 1) {
+                return result[0];
+            } else {
+                return result;
+            }
         }
     };
 
@@ -287,7 +306,7 @@ const App = (function () {
     };
 
     const toggle_nav_view_doc = function () {
-        toggle_nav(el_nav_loadlocal, el_nav_savelocal, el_nav_about);
+        toggle_nav(el_nav_loadlocal, el_nav_savelocal, el_nav_github, el_nav_about);
         toggle_section(el_view_doc);
     };
 
@@ -305,11 +324,15 @@ const App = (function () {
         toggle_nav(el_nav_close);
         toggle_section(el_view_about);
     };
+
+    const toggle_nav_view_github = function () {
+        toggle_nav(el_nav_save, el_nav_close);
+        toggle_section(el_view_github);
+    };
     /* #endregion */
 
     /* #region HANDLERS */
     const nav_savelocal_click_handler = function () {
-        el_view_savelocal_filename.value = "";
         toggle_nav_view_savelocal();
         el_view_savelocal_filename.focus();
         el_nav_save.save_handler = nav_savelocal_save_handler;
@@ -345,15 +368,44 @@ const App = (function () {
         });
     };
 
+    const nav_github_click_handler = function () {
+        toggle_nav_view_github();
+        el_view_github_master_password.focus();
+        el_nav_save.save_handler = nav_github_save_handler;
+        el_nav_close.close_handler = nav_github_close_handler;
+    };
+
+    const nav_github_save_handler = function() {
+        const master_password = el_view_github_master_password.value;
+        const confirm_password = el_view_github_confirm_password.value;
+        const github_username = el_view_github_username.value;
+        const github_password = el_view_github_password.value;
+        const github_reponame = el_view_github_reponame.value;
+        return authenticate_github(github_username, github_password, github_reponame)
+            .then(success => {
+                return new Promise((resolve, reject) => {
+                    console.log(success);
+                    reject();
+                });
+            });
+    };
+
+    const nav_github_close_handler = function() {
+        return new Promise((resolve, reject) => {
+            try {
+                toggle_nav_view_doc();
+                resolve();
+            } catch(error) {
+                log(LOG_ERROR, () => error);
+            }
+        });
+    };
+
     const clear_for_safety = function() {
-        el_nav_save.save_handler = null;
-        el_view_authenticate_password.value = "";
-        el_view_authenticate_error.innerHTML = "";
-        el_view_authenticate.auth_handler = null;
-        el_view_savelocal_filename.value = "";
-        el_view_savelocal_password.value = "";
-        el_view_savelocal_error.innerHTML = "";
+        each(dom_query("input"), item => item.value = "");
         loaded_cipher_text = null;
+        el_nav_save.save_handler = null;
+        el_view_authenticate.auth_handler = null;
         el_nav_save.save_handler = null;
         el_nav_authenticate.auth_handler = null;
         el_nav_cancel.cancel_handler = null;
@@ -484,11 +536,44 @@ const App = (function () {
     };
     /* #endregion */
 
+    const call_github = function(url, username, password) {
+        let request = new Request(url);
+        let headers = new Headers();
+        headers.append("Accept", "application/vnd.github.v3+json");
+        headers.append("Authorization", "Basic " + btoa(username + ":" + password));
+        let config = {
+            method: "GET",
+            headers: headers,
+            mode: "cors"
+        };
+        return fetch(request, config)
+            .catch(error => { log(LOG_ERROR, () => error); });
+    };
+
+    const authenticate_github = function(username, password, repo) {
+        const url = GITHUB_REPO_URL + "/" + username + "/" + repo;
+        return call_github(url, username, password)
+            .then(response => { return response.json(); })
+            .then(data => {
+                return new Promise((resolve, reject) => {
+                try {
+                    if (data.id && data.name.toLowerCase() === repo.toLowerCase() && data.permissions.push) {
+                        resolve(true);
+                    } else {
+                        resolve(false);
+                    }
+                } catch {
+                    resolve(false);
+                }}); 
+            });
+    };
+
     const app_start = function () {
         sections.push(el_view_doc = dom_query("#view_doc"));
         sections.push(el_view_authenticate = dom_query("#view_authenticate"));
         sections.push(el_view_savelocal = dom_query("#view_savelocal"));
         sections.push(el_view_about = dom_query("#view_about"));
+        sections.push(el_view_github = dom_query("#view_github"));
         nav.push(el_nav_authenticate = dom_query("#nav_authenticate"));
         nav.push(el_nav_loadlocal = dom_query("#nav_loadlocal"));
         nav.push(el_nav_savelocal = dom_query("#nav_savelocal"));
@@ -505,6 +590,11 @@ const App = (function () {
         el_view_savelocal_filename = dom_query("#view_savelocal_filename");
         el_view_savelocal_password = dom_query("#view_savelocal_password");
         el_view_savelocal_error = dom_query("#view_savelocal_error");
+        el_view_github_master_password = dom_query("#view_github_master_password");
+        el_view_github_confirm_password = dom_query("#view_github_confirm_password");
+        el_view_github_username = dom_query("#view_github_username");
+        el_view_github_password = dom_query("#view_github_password");
+        el_view_github_reponame = dom_query("#view_github_reponame");
         el_popover_message = dom_query("#popover_message");
         
         // init
@@ -520,6 +610,7 @@ const App = (function () {
         add_click_handler(el_nav_close, nav_close_click_handler);
         add_click_handler(el_nav_about, nav_about_click_handler);
         add_click_handler(el_nav_authenticate, nav_authenticate_click_handler);
+        add_click_handler(el_nav_github, nav_github_click_handler);
         add_change_handler(el_nav_loadlocal_file, nav_loadlocal_file_change_handler);
         add_change_handler(el_view_doc_text, view_doc_text_edit_handler);
         add_keydown_handler(el_view_doc_text, view_doc_text_edit_handler);
