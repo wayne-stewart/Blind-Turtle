@@ -22,7 +22,11 @@ const App = (function () {
 
         /* user state */
         log_level = LOG_ERROR,
-        global_password = "",
+        master_password = "",
+        github_username = "",
+        github_password = "",
+        github_reponame = "",
+        github_filepath = "",
         loaded_cipher_text = null,
 
         /* dom elements */
@@ -52,14 +56,40 @@ const App = (function () {
         el_view_github_confirm_password,
         el_view_github_username,
         el_view_github_password,
-        el_view_github_reponame;
+        el_view_github_reponame,
+        el_view_github_filepath;
+
+    const get_master_password = function() {
+        return master_password;
+    };
+
+    const set_master_password = function(password) {
+        master_password = password;
+    };
+    const get_github_info = function() {
+        return {
+            username: github_username,
+            password: github_password,
+            reponame: github_reponame,
+            filepath: github_filepath
+        }
+    };
+    const set_github_info = function(info) {
+        github_username = info.username;
+        github_password = info.password;
+        github_reponame = info.reponame;
+        github_filepath = info.filepath;
+    };
+
     /* #endregion */
     
+    /* #region LOGGING */
     const log = function(level, message_func) {
         if (level <= log_level && is_function(message_func)) {
             console.log(message_func());
         }
     };
+    /* #endregion */
 
     /* #region EXTENSIONS */
 
@@ -508,8 +538,8 @@ const App = (function () {
                 if (el_view_doc_text.saved_hashed_value !== hex_value) {
                     el_view_doc_text.saved_hashed_value = hex_value;
                     log(LOG_DEBUG, () => hex_value + " " + text);
-                    if (global_password) {
-                        text = encrypt(global_password, text);
+                    if (master_password) {
+                        text = encrypt(master_password, text);
                         set_local(LOCAL_STORAGE_DATA_KEY, text);
                         show_saved_to_local_storage();
                     } else {
@@ -536,13 +566,14 @@ const App = (function () {
     };
     /* #endregion */
 
-    const call_github = function(url, username, password) {
+    /* #region GITHUB */
+    const call_github = function(url, method, username, password) {
         let request = new Request(url);
         let headers = new Headers();
         headers.append("Accept", "application/vnd.github.v3+json");
         headers.append("Authorization", "Basic " + btoa(username + ":" + password));
         let config = {
-            method: "GET",
+            method: method.toUpperCase(),
             headers: headers,
             mode: "cors"
         };
@@ -552,7 +583,7 @@ const App = (function () {
 
     const authenticate_github = function(username, password, repo) {
         const url = GITHUB_REPO_URL + "/" + username + "/" + repo;
-        return call_github(url, username, password)
+        return call_github(url, "GET", username, password)
             .then(response => { return response.json(); })
             .then(data => {
                 return new Promise((resolve, reject) => {
@@ -567,6 +598,12 @@ const App = (function () {
                 }}); 
             });
     };
+
+    const commit_file_to_github = function() {
+        const url = GITHUB_REPO_URL + "/" + username
+    };
+
+    /* #endregion */
 
     const app_start = function () {
         sections.push(el_view_doc = dom_query("#view_doc"));
@@ -595,6 +632,7 @@ const App = (function () {
         el_view_github_username = dom_query("#view_github_username");
         el_view_github_password = dom_query("#view_github_password");
         el_view_github_reponame = dom_query("#view_github_reponame");
+        el_view_github_filepath = dom_query("#view_github_filepath");
         el_popover_message = dom_query("#popover_message");
         
         // init
