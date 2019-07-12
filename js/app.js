@@ -342,76 +342,6 @@ const App = (function () {
     /* #endregion */
 
     /* #region HANDLERS */
-    const nav_savelocal_click_handler = function () {
-        toggle_nav(el_nav_save, el_nav_cancel);
-        toggle_section(el_view_savelocal);
-        el_nav_save.secpad_click_handler = nav_savelocal_save_handler;
-        el_nav_cancel.secpad_click_handler = nav_savelocal_cancel_handler;
-        el_view_savelocal_filename.focus();
-    };
-
-    const nav_savelocal_save_handler = function() {
-        return new Promise(function(resolve, reject) {
-            try {
-                let filename = el_view_savelocal_filename.value;
-                let password = el_view_savelocal_password.value;
-                let text = el_view_doc_text.value;
-                if (filename.length === 0) {
-                    filename = "secpad.json";
-                }
-                text = encrypt(password, text);
-                const file = new File([text], filename, { type: "text/plain; charset=utf=8" });
-                saveAs(file);
-                toggle_nav_view_doc();
-                resolve();
-            } catch (ex) {
-                el_view_savelocal_error.innerHTML = ex;
-                reject(ex);
-            }
-
-        });
-    };
-
-    const nav_savelocal_cancel_handler = function() {
-        return new Promise(function(resolve, reject) {
-            toggle_nav_view_doc();
-            resolve();
-        });
-    };
-
-    const nav_github_click_handler = function () {
-        toggle_nav(el_nav_save, el_nav_close);
-        toggle_section(el_view_github);
-        el_view_github_master_password.focus();
-        el_nav_save.secpad_click_handler = nav_github_save_handler;
-        el_nav_close.secpad_click_handler = nav_github_close_handler;
-    };
-
-    const nav_github_save_handler = function() {
-        const master_password = el_view_github_master_password.value;
-        const confirm_password = el_view_github_confirm_password.value;
-        const github_username = el_view_github_username.value;
-        const github_password = el_view_github_password.value;
-        const github_reponame = el_view_github_reponame.value;
-        return authenticate_github(github_username, github_password, github_reponame)
-            .then(success => {
-                return new Promise((resolve, reject) => {
-                    console.log(success);
-                    reject();
-                });
-            });
-    };
-
-    const nav_github_close_handler = function() {
-        return new Promise((resolve, reject) => {
-            try {
-                toggle_nav_view_doc();
-                resolve();
-            } catch(error) {
-                log(LOG_ERROR, () => error);
-            }
-        });
-    };
 
     const clear_for_safety = function() {
         each(dom_query("input"), item => item.value = "");
@@ -437,41 +367,6 @@ const App = (function () {
                 resolve();
             });
         };
-    };
-
-    const nav_loadlocal_file_change_handler = function () {
-        if (el_nav_loadlocal_file.files.length > 0) {
-            var file_reader = new FileReader();
-            file_reader.onload = function () {
-                loaded_cipher_text = file_reader.result;
-                toggle_nav(el_nav_authenticate, el_nav_cancel);
-                toggle_section(el_view_authenticate);
-                el_nav_authenticate.secpad_click_handler = nav_loadlocal_auth_handler;
-                el_nav_cancel.secpad_click_handler = nav_loadlocal_cancel_handler;
-            };
-            file_reader.readAsText(el_nav_loadlocal_file.files[0])
-        }
-    };
-
-    const nav_loadlocal_auth_handler = function() {
-        return new Promise(function(resolve, reject) {
-            try {
-                const text = decrypt(el_view_authenticate_password.value, loaded_cipher_text);
-                el_view_doc_text.value = text;
-                toggle_nav_view_doc();
-                resolve();
-            } catch(ex) {
-                el_view_authenticate_error.innerHTML = ex;
-                reject(ex);
-            }
-        });
-    };
-
-    const nav_loadlocal_cancel_handler = function() {
-        return new Promise(function(resolve, reject) {
-            toggle_nav_view_doc();
-            resolve();
-        });
     };
 
     const view_doc_text_edit_handler = function (e) {
@@ -520,7 +415,117 @@ const App = (function () {
     };
     /* #endregion */
 
+    /* #region SAVE LOCAL ( EXPORT TO FILE ) */
+    const nav_savelocal_click_handler = function () {
+        toggle_nav(el_nav_save, el_nav_cancel);
+        toggle_section(el_view_savelocal);
+        el_nav_save.secpad_click_handler = nav_savelocal_save_handler;
+        el_nav_cancel.secpad_click_handler = nav_savelocal_cancel_handler;
+        el_view_savelocal_filename.focus();
+    };
+
+    const nav_savelocal_save_handler = function() {
+        return new Promise(function(resolve, reject) {
+            try {
+                let filename = el_view_savelocal_filename.value;
+                let password = el_view_savelocal_password.value;
+                let text = el_view_doc_text.value;
+                if (filename.length === 0) {
+                    filename = "secpad.json";
+                }
+                text = encrypt(password, text);
+                const file = new File([text], filename, { type: "text/plain; charset=utf=8" });
+                saveAs(file);
+                toggle_nav_view_doc();
+                resolve();
+            } catch (ex) {
+                el_view_savelocal_error.innerHTML = ex;
+                reject(ex);
+            }
+
+        });
+    };
+
+    const nav_savelocal_cancel_handler = function() {
+        return new Promise(function(resolve, reject) {
+            toggle_nav_view_doc();
+            resolve();
+        });
+    };
+    /* #endregion */
+
+    /* #region LOAD LOCAL ( LOAD FROM FILE ) */
+    const nav_loadlocal_file_change_handler = function () {
+        if (el_nav_loadlocal_file.files.length > 0) {
+            var file_reader = new FileReader();
+            file_reader.onload = function () {
+                loaded_cipher_text = file_reader.result;
+                toggle_nav(el_nav_authenticate, el_nav_cancel);
+                toggle_section(el_view_authenticate);
+                el_nav_authenticate.secpad_click_handler = nav_loadlocal_auth_handler;
+                el_nav_cancel.secpad_click_handler = nav_loadlocal_cancel_handler;
+            };
+            file_reader.readAsText(el_nav_loadlocal_file.files[0])
+        }
+    };
+
+    const nav_loadlocal_auth_handler = function() {
+        return new Promise(function(resolve, reject) {
+            try {
+                const text = decrypt(el_view_authenticate_password.value, loaded_cipher_text);
+                el_view_doc_text.value = text;
+                toggle_nav_view_doc();
+                resolve();
+            } catch(ex) {
+                el_view_authenticate_error.innerHTML = ex;
+                reject(ex);
+            }
+        });
+    };
+
+    const nav_loadlocal_cancel_handler = function() {
+        return new Promise(function(resolve, reject) {
+            toggle_nav_view_doc();
+            resolve();
+        });
+    };
+    /* #endregion */
+
     /* #region GITHUB */
+    const nav_github_click_handler = function () {
+        toggle_nav(el_nav_save, el_nav_close);
+        toggle_section(el_view_github);
+        el_view_github_master_password.focus();
+        el_nav_save.secpad_click_handler = nav_github_save_handler;
+        el_nav_close.secpad_click_handler = nav_github_close_handler;
+    };
+
+    const nav_github_save_handler = function() {
+        const master_password = el_view_github_master_password.value;
+        const confirm_password = el_view_github_confirm_password.value;
+        const github_username = el_view_github_username.value;
+        const github_password = el_view_github_password.value;
+        const github_reponame = el_view_github_reponame.value;
+        return authenticate_github(github_username, github_password, github_reponame)
+            .then(success => {
+                return new Promise((resolve, reject) => {
+                    console.log(success);
+                    reject();
+                });
+            });
+    };
+
+    const nav_github_close_handler = function() {
+        return new Promise((resolve, reject) => {
+            try {
+                toggle_nav_view_doc();
+                resolve();
+            } catch(error) {
+                log(LOG_ERROR, () => error);
+            }
+        });
+    };
+
     const call_github = function(url, method, username, password) {
         let request = new Request(url);
         let headers = new Headers();
