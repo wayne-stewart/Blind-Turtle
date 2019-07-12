@@ -339,34 +339,15 @@ const App = (function () {
         toggle_nav(el_nav_loadlocal, el_nav_savelocal, el_nav_github, el_nav_about);
         toggle_section(el_view_doc);
     };
-
-    const toggle_nav_view_savelocal = function () {
-        toggle_nav(el_nav_save, el_nav_cancel);
-        toggle_section(el_view_savelocal);
-    };
-
-    const toggle_nav_view_authenticate = function () {
-        toggle_nav(el_nav_authenticate, el_nav_cancel);
-        toggle_section(el_view_authenticate);
-    };
-
-    const toggle_nav_view_about = function () {
-        toggle_nav(el_nav_close);
-        toggle_section(el_view_about);
-    };
-
-    const toggle_nav_view_github = function () {
-        toggle_nav(el_nav_save, el_nav_close);
-        toggle_section(el_view_github);
-    };
     /* #endregion */
 
     /* #region HANDLERS */
     const nav_savelocal_click_handler = function () {
-        toggle_nav_view_savelocal();
+        toggle_nav(el_nav_save, el_nav_cancel);
+        toggle_section(el_view_savelocal);
+        el_nav_save.secpad_click_handler = nav_savelocal_save_handler;
+        el_nav_cancel.secpad_click_handler = nav_savelocal_cancel_handler;
         el_view_savelocal_filename.focus();
-        el_nav_save.save_handler = nav_savelocal_save_handler;
-        el_nav_cancel.cancel_handler = nav_savelocal_cancel_handler;
     };
 
     const nav_savelocal_save_handler = function() {
@@ -399,10 +380,11 @@ const App = (function () {
     };
 
     const nav_github_click_handler = function () {
-        toggle_nav_view_github();
+        toggle_nav(el_nav_save, el_nav_close);
+        toggle_section(el_view_github);
         el_view_github_master_password.focus();
-        el_nav_save.save_handler = nav_github_save_handler;
-        el_nav_close.close_handler = nav_github_close_handler;
+        el_nav_save.secpad_click_handler = nav_github_save_handler;
+        el_nav_close.secpad_click_handler = nav_github_close_handler;
     };
 
     const nav_github_save_handler = function() {
@@ -434,56 +416,27 @@ const App = (function () {
     const clear_for_safety = function() {
         each(dom_query("input"), item => item.value = "");
         loaded_cipher_text = null;
-        el_nav_save.save_handler = null;
-        el_view_authenticate.auth_handler = null;
-        el_nav_save.save_handler = null;
-        el_nav_authenticate.auth_handler = null;
-        el_nav_cancel.cancel_handler = null;
-        el_nav_close.close_handler = null;
+        each(dom_query("nav a"), item => item.secpad_click_handler = null);
     };
 
-    const nav_save_click_handler = function () {
-        if (is_function(el_nav_save.save_handler)) {
-            el_nav_save.save_handler()
+    const nav_dynamic_click_handler = function (evnt) {
+        if (is_function(evnt.target.secpad_click_handler)) {
+            evnt.target.secpad_click_handler(evnt)
                 .then(clear_for_safety)
-                .catch((error) => { log(LOG_ERROR, () => error); });
-        }
-    };
-
-    const nav_cancel_click_handler = function () {
-        if (is_function(el_nav_cancel.cancel_handler)) {
-            el_nav_cancel.cancel_handler()
-                .then(clear_for_safety)
-                .catch((error) => { log(LOG_ERROR, () => error); });
-        }
-    };
-
-    const nav_close_click_handler = function () {
-        if (is_function(el_nav_close.close_handler)) {
-            el_nav_close.close_handler()
-                .then(clear_for_safety)
-                .catch((error) => { log(LOG_ERROR, () => error); });
+                .catch(error => { log(LOG_ERROR, () => error); });
         }
     };
 
     const nav_about_click_handler = function () {
-        toggle_nav_view_about();
-        el_nav_close.close_handler = nav_about_close_handler;
-    };
+        toggle_nav(el_nav_close);
+        toggle_section(el_view_about);
 
-    const nav_about_close_handler = function() {
-        return new Promise((resolve, reject) => {
-            toggle_nav_view_doc();
-            resolve();
-        });
-    };
-
-    const nav_authenticate_click_handler = function() {
-        if (is_function(el_nav_authenticate.auth_handler)) {
-            el_nav_authenticate.auth_handler()
-                .then(clear_for_safety)
-                .catch((error) => { log(LOG_ERROR, () => error); });
-        }
+        el_nav_close.secpad_click_handler = () => {
+            return new Promise((resolve, reject) => {
+                toggle_nav_view_doc();
+                resolve();
+            });
+        };
     };
 
     const nav_loadlocal_file_change_handler = function () {
@@ -491,9 +444,10 @@ const App = (function () {
             var file_reader = new FileReader();
             file_reader.onload = function () {
                 loaded_cipher_text = file_reader.result;
-                toggle_nav_view_authenticate();
-                el_nav_authenticate.auth_handler = nav_loadlocal_auth_handler;
-                el_nav_cancel.cancel_handler = nav_loadlocal_cancel_handler;
+                toggle_nav(el_nav_authenticate, el_nav_cancel);
+                toggle_section(el_view_authenticate);
+                el_nav_authenticate.secpad_click_handler = nav_loadlocal_auth_handler;
+                el_nav_cancel.secpad_click_handler = nav_loadlocal_cancel_handler;
             };
             file_reader.readAsText(el_nav_loadlocal_file.files[0])
         }
@@ -641,14 +595,13 @@ const App = (function () {
         hide(el_popover_message);
         toggle_nav_view_doc();
 
-        //add_click_handler(el_nav_authenticate, el_authenticate_click_handler);
         add_click_handler(el_nav_savelocal, nav_savelocal_click_handler);
-        add_click_handler(el_nav_save, nav_save_click_handler);
-        add_click_handler(el_nav_cancel, nav_cancel_click_handler);
-        add_click_handler(el_nav_close, nav_close_click_handler);
-        add_click_handler(el_nav_about, nav_about_click_handler);
-        add_click_handler(el_nav_authenticate, nav_authenticate_click_handler);
         add_click_handler(el_nav_github, nav_github_click_handler);
+        add_click_handler(el_nav_about, nav_about_click_handler);
+        add_click_handler(el_nav_save, nav_dynamic_click_handler);
+        add_click_handler(el_nav_cancel, nav_dynamic_click_handler);
+        add_click_handler(el_nav_close, nav_dynamic_click_handler);
+        add_click_handler(el_nav_authenticate, nav_dynamic_click_handler);
         add_change_handler(el_nav_loadlocal_file, nav_loadlocal_file_change_handler);
         add_change_handler(el_view_doc_text, view_doc_text_edit_handler);
         add_keydown_handler(el_view_doc_text, view_doc_text_edit_handler);
