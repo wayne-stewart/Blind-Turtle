@@ -134,3 +134,7 @@ section textarea {
     display:inline-block;
     font-weight:bold;
 }
+
+input.error {
+    border-color:red;
+}

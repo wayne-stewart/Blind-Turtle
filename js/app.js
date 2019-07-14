@@ -21,7 +21,7 @@ const App = (function () {
         edit_dirty = false,
 
         /* user state */
-        log_level = LOG_ERROR,
+        log_level = LOG_DEBUG,
         master_password = "",
         github_username = "",
         github_password = "",
@@ -85,8 +85,12 @@ const App = (function () {
     
     /* #region LOGGING */
     const log = function(level, message_func) {
-        if (level <= log_level && is_function(message_func)) {
-            console.log(message_func());
+        if (level <= log_level) {
+            if ( is_function(message_func)) {
+                console.log(message_func());
+            } else {
+                console.log(message_func);
+            }
         }
     };
     /* #endregion */
@@ -521,15 +525,31 @@ const App = (function () {
 
     const nav_github_save_handler = function() {
         const master_password = el_view_github_master_password.value;
-        const confirm_password = el_view_github_confirm_password.value;
         const github_username = el_view_github_username.value;
         const github_password = el_view_github_password.value;
         const github_reponame = el_view_github_reponame.value;
-        return authenticate_github(github_username, github_password, github_reponame)
+        const github_filepath = el_view_github_filepath.value;
+        return validate(el_view_github_master_password, 
+                        el_view_github_confirm_password,
+                        el_view_github_username,
+                        el_view_github_password,
+                        el_view_github_reponame,
+                        el_view_github_filepath)
+            .then(() => authenticate_github(github_username, github_password, github_reponame))
             .then(success => {
                 return new Promise((resolve, reject) => {
-                    console.log(success);
-                    reject();
+                    if (success) {
+                        log(LOG_DEBUG, "GitHub Validated");
+                        set_master_password(master_password);
+                        set_github_info({
+                            username: github_username,
+                            password: github_password,
+                            reponame: github_reponame,
+                            filepath: github_filepath
+                        });
+                    } else {
+                        reject("Github Validation Failed");
+                    }
                 });
             });
     };
@@ -540,7 +560,7 @@ const App = (function () {
                 toggle_nav_view_doc();
                 resolve();
             } catch(error) {
-                log(LOG_ERROR, () => error);
+                log(LOG_ERROR, () => "Github close handler error: " + error);
             }
         });
     };
@@ -556,7 +576,7 @@ const App = (function () {
             mode: "cors"
         };
         return fetch(request, config)
-            .catch(error => { log(LOG_ERROR, () => error); });
+            .catch(error => { log(LOG_ERROR, () => "Call to Github failed with error: " + error); });
     };
 
     const authenticate_github = function(username, password, repo) {
@@ -582,6 +602,30 @@ const App = (function () {
     };
 
     /* #endregion */
+
+    const validate = function (/* controls to validate */) {
+        return new Promise((resolve, reject) => {
+            let is_valid = true;
+            each(arguments, el => {
+                if (is_function(el.secpad_validator) && !el.secpad_validator.call(el)) {
+                    el.classList.add("error");
+                    is_valid = false;
+                } else {
+                    el.classList.remove("error");
+                }
+            });
+            if (is_valid) {
+                resolve();
+            } else {
+                reject("Validation Failed");
+            }
+        });
+    };
+
+    const validate_input_has_value = function() {
+        let is_valid = this.value.length > 0;
+        return is_valid;
+    };
 
     const app_start = function () {
         sections.push(el_view_doc = dom_query("#view_doc"));
@@ -633,6 +677,20 @@ const App = (function () {
         add_keypress_handler(el_view_authenticate, view_dynamic_default_enter_press_handler);
         add_keypress_handler(el_view_savelocal, view_dynamic_default_enter_press_handler);
         add_keypress_handler(el_view_github, view_dynamic_default_enter_press_handler);
+
+        // add validation
+        el_view_github_master_password.secpad_validator = function() {
+            if (el_view_github_master_password.value === el_view_github_confirm_password.value) {
+                return true;
+            } else {
+                return false;
+            }
+        };
+        el_view_github_confirm_password.secpad_validator = el_view_github_master_password.secpad_validator;
+        el_view_github_username.secpad_validator = validate_input_has_value;
+        el_view_github_password.secpad_validator = validate_input_has_value;
+        el_view_github_reponame.secpad_validator = validate_input_has_value;
+        el_view_github_filepath.secpad_validator = validate_input_has_value;
 
         interval_id = setInterval(timer_tick_handler, GLOBAL_INTERVAL_MILLISECONDS);
 
