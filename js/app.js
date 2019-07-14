@@ -240,8 +240,8 @@ const App = (function () {
         add_event_listener(el, "keydown", handler)
     };
 
-    const add_keypress_handler = function(el, handler) {
-        add_event_listener(el, "keypress", handler);
+    const add_keyup_handler = function(el, handler) {
+        add_event_listener(el, "keyup", handler);
     };
 
     const add_paste_handler = function (el, handler) {
@@ -353,10 +353,14 @@ const App = (function () {
 
     const clear_for_safety = function() {
         log(LOG_DEBUG, () => "clear_for_safety called");
-        each(dom_query("input"), item => item.value = "");
+        each(dom_query("input"), item => {
+            item.value = ""; 
+            item.classList.remove("error"); });
         loaded_cipher_text = null;
         each(dom_query("nav a"), item => item.secpad_click_handler = null);
-        each(dom_query("section"), item => item.secpad_default_enter_press_handler = null);
+        each(dom_query("section"), item => {
+            item.secpad_default_enter_press_handler = null;
+            item.secpad_default_esc_press_handler = null; });
     };
 
     const nav_dynamic_click_handler = function (evnt) {
@@ -367,12 +371,24 @@ const App = (function () {
         }
     };
 
-    const view_dynamic_default_enter_press_handler = function(evnt) {
-        if (evnt.which === 13 || evnt.keyCode === 13) {
-            if (is_function(evnt.target.closest("section").secpad_default_enter_press_handler)) {
-                evnt.target.closest("section").secpad_default_enter_press_handler(evnt)
-                    .then(clear_for_safety)
-                    .catch(error => { log(LOG_ERROR, () => error); });
+    const view_dynamic_default_keyup_handler = function(evnt) {
+        const key = evnt.key;
+        log(LOG_DEBUG, () => "Key Up: " + key);
+        const el_section = evnt.target.closest("section");
+        if (el_section) {
+            if (key === "Enter") {
+                if (is_function(el_section.secpad_default_enter_press_handler)) {
+                    el_section.secpad_default_enter_press_handler(evnt)
+                        .then(clear_for_safety)
+                        .catch(error => { log(LOG_ERROR, () => "Key Up Handler Error: " + error); });
+                }
+            }
+            else if (key === "Escape") {
+                if (is_function(el_section.secpad_default_esc_press_handler)) {
+                    el_section.secpad_default_esc_press_handler(evnt)
+                        .then(clear_for_safety)
+                        .catch(error => { log(LOG_ERROR, () => "Escape Handler Error: " + error); });
+                }
             }
         }
     };
@@ -442,6 +458,7 @@ const App = (function () {
         el_nav_save.secpad_click_handler = nav_savelocal_save_handler;
         el_nav_cancel.secpad_click_handler = nav_savelocal_cancel_handler;
         el_view_savelocal.secpad_default_enter_press_handler = nav_savelocal_save_handler;
+        el_view_savelocal.secpad_default_esc_press_handler = nav_savelocal_cancel_handler;
         el_view_savelocal_filename.focus();
     };
 
@@ -485,6 +502,7 @@ const App = (function () {
                 el_nav_authenticate.secpad_click_handler = nav_loadlocal_auth_handler;
                 el_nav_cancel.secpad_click_handler = nav_loadlocal_cancel_handler;
                 el_view_authenticate.secpad_default_enter_press_handler = nav_loadlocal_auth_handler;
+                el_view_authenticate.secpad_default_esc_press_handler = nav_loadlocal_cancel_handler;
                 el_view_authenticate_password.focus();
             };
             file_reader.readAsText(el_nav_loadlocal_file.files[0])
@@ -521,6 +539,7 @@ const App = (function () {
         el_nav_save.secpad_click_handler = nav_github_save_handler;
         el_nav_close.secpad_click_handler = nav_github_close_handler;
         el_view_github.secpad_default_enter_press_handler = nav_github_save_handler;
+        el_view_github.secpad_default_esc_press_handler = nav_github_close_handler;
     };
 
     const nav_github_save_handler = function() {
@@ -674,9 +693,9 @@ const App = (function () {
         add_change_handler(el_view_doc_text, view_doc_text_edit_handler);
         add_keydown_handler(el_view_doc_text, view_doc_text_edit_handler);
         add_paste_handler(el_view_doc_text, view_doc_text_edit_handler);
-        add_keypress_handler(el_view_authenticate, view_dynamic_default_enter_press_handler);
-        add_keypress_handler(el_view_savelocal, view_dynamic_default_enter_press_handler);
-        add_keypress_handler(el_view_github, view_dynamic_default_enter_press_handler);
+        add_keyup_handler(el_view_authenticate, view_dynamic_default_keyup_handler);
+        add_keyup_handler(el_view_savelocal, view_dynamic_default_keyup_handler);
+        add_keyup_handler(el_view_github, view_dynamic_default_keyup_handler);
 
         // add validation
         el_view_github_master_password.secpad_validator = function() {
