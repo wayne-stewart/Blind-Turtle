@@ -82,15 +82,11 @@ const App = (function () {
     };
 
     /* #endregion */
-    
+
     /* #region LOGGING */
-    const log = function(level, message_func) {
-        if (level <= log_level) {
-            if ( is_function(message_func)) {
-                console.log(message_func());
-            } else {
-                console.log(message_func);
-            }
+    const log = message => {
+        if (is_instantiated(console) && is_instantiated(console.log)) {
+            console.log(message);
         }
     };
     /* #endregion */
@@ -352,7 +348,7 @@ const App = (function () {
     /* #region HANDLERS */
 
     const clear_for_safety = function() {
-        log(LOG_DEBUG, () => "clear_for_safety called");
+        log("clear_for_safety called");
         each(dom_query("input"), item => {
             item.value = ""; 
             item.classList.remove("error"); });
@@ -367,27 +363,27 @@ const App = (function () {
         if (is_function(evnt.target.secpad_click_handler)) {
             evnt.target.secpad_click_handler(evnt)
                 .then(clear_for_safety)
-                .catch(error => { log(LOG_ERROR, () => error); });
+                .catch(error => { log(error); });
         }
     };
 
     const view_dynamic_default_keyup_handler = function(evnt) {
         const key = evnt.key;
-        log(LOG_DEBUG, () => "Key Up: " + key);
+        //log("Key Up: " + key);
         const el_section = evnt.target.closest("section");
         if (el_section) {
             if (key === "Enter") {
                 if (is_function(el_section.secpad_default_enter_press_handler)) {
                     el_section.secpad_default_enter_press_handler(evnt)
                         .then(clear_for_safety)
-                        .catch(error => { log(LOG_ERROR, () => "Key Up Handler Error: " + error); });
+                        .catch(error => { log("Key Up Handler Error: " + error); });
                 }
             }
             else if (key === "Escape") {
                 if (is_function(el_section.secpad_default_esc_press_handler)) {
                     el_section.secpad_default_esc_press_handler(evnt)
                         .then(clear_for_safety)
-                        .catch(error => { log(LOG_ERROR, () => "Escape Handler Error: " + error); });
+                        .catch(error => { log("Escape Handler Error: " + error); });
                 }
             }
         }
@@ -422,13 +418,13 @@ const App = (function () {
                 const hex_value = hashed_value.to_hex_string();
                 if (el_view_doc_text.saved_hashed_value !== hex_value) {
                     el_view_doc_text.saved_hashed_value = hex_value;
-                    log(LOG_DEBUG, () => hex_value + " " + text);
+                    log(hex_value + " " + text);
                     if (master_password) {
                         text = encrypt(master_password, text);
                         set_local(LOCAL_STORAGE_DATA_KEY, text);
                         show_saved_to_local_storage();
                     } else {
-                        log(LOG_DEBUG, () => "global password not set, local storage save disabled.");
+                        log("global password not set, local storage save disabled.");
                     }
                 }
             });
@@ -543,28 +539,20 @@ const App = (function () {
     };
 
     const nav_github_save_handler = function() {
-        const master_password = el_view_github_master_password.value;
-        const github_username = el_view_github_username.value;
-        const github_password = el_view_github_password.value;
-        const github_reponame = el_view_github_reponame.value;
-        const github_filepath = el_view_github_filepath.value;
-        return validate(el_view_github_master_password, 
-                        el_view_github_confirm_password,
-                        el_view_github_username,
-                        el_view_github_password,
-                        el_view_github_reponame,
-                        el_view_github_filepath)
-            .then(() => authenticate_github(github_username, github_password, github_reponame))
+        return validate(el_view_github)
+            .then(() => authenticate_github(
+                el_view_github_username.value, 
+                el_view_github_password.value, 
+                el_view_github_reponame.value))
             .then(success => {
                 return new Promise((resolve, reject) => {
                     if (success) {
-                        log(LOG_DEBUG, "GitHub Validated");
-                        set_master_password(master_password);
+                        set_master_password(el_view_github_master_password.value);
                         set_github_info({
-                            username: github_username,
-                            password: github_password,
-                            reponame: github_reponame,
-                            filepath: github_filepath
+                            username: el_view_github_username.value,
+                            password: el_view_github_password.value,
+                            reponame: el_view_github_reponame.value,
+                            filepath: el_view_github_filepath.value
                         });
                     } else {
                         reject("Github Validation Failed");
@@ -579,7 +567,7 @@ const App = (function () {
                 toggle_nav_view_doc();
                 resolve();
             } catch(error) {
-                log(LOG_ERROR, () => "Github close handler error: " + error);
+                log("Github close handler error: " + error);
             }
         });
     };
@@ -595,7 +583,7 @@ const App = (function () {
             mode: "cors"
         };
         return fetch(request, config)
-            .catch(error => { log(LOG_ERROR, () => "Call to Github failed with error: " + error); });
+            .catch(error => { log("Call to Github failed with error: " + error); });
     };
 
     const authenticate_github = function(username, password, repo) {
@@ -605,7 +593,8 @@ const App = (function () {
             .then(data => {
                 return new Promise((resolve, reject) => {
                 try {
-                    if (data.id && data.name.toLowerCase() === repo.toLowerCase() && data.permissions.push) {
+                    if (data.id && data.name.toLowerCase() === repo.toLowerCase() && data.permissions.push === true) {
+                        log("GitHub Validated");
                         resolve(true);
                     } else {
                         resolve(false);
@@ -622,15 +611,24 @@ const App = (function () {
 
     /* #endregion */
 
-    const validate = function (/* controls to validate */) {
+    const validate = function (el_container) {
         return new Promise((resolve, reject) => {
             let is_valid = true;
-            each(arguments, el => {
-                if (is_function(el.secpad_validator) && !el.secpad_validator.call(el)) {
+            each(dom_query("input", el_container), el => {
+                let el_is_valid = true;
+                if (el.validators && el.validators.length > 0) {
+                    each(el.validators, validator => {
+                        if (!validator.call(el)) {
+                            el_is_valid = false;
+                        }
+                    });
+                }
+                if (el_is_valid) {
+                    el.classList.remove("error");
+                }
+                else {
                     el.classList.add("error");
                     is_valid = false;
-                } else {
-                    el.classList.remove("error");
                 }
             });
             if (is_valid) {
@@ -641,17 +639,39 @@ const App = (function () {
         });
     };
 
-    const validate_input_has_value = function() {
+    const add_validator = function(el, validator) {
+        if (el && validator) {
+            if (!is_instantiated(el.validators)) {
+                el.validators = [];
+            }
+            el.validators.push(validator);
+        }
+    };
+
+    /* the 'this' parameter is the element to validate */
+    const validate_input_required = function() {
         let is_valid = this.value.length > 0;
         return is_valid;
     };
 
+    const validate_github_master_password = function() {
+        if (el_view_github_master_password.value === el_view_github_confirm_password.value) {
+            return true;
+        } else {
+            return false;
+        }
+    };
+
     const app_start = function () {
+
+        // SECTIONS ( VIEWS )
         sections.push(el_view_doc = dom_query("#view_doc"));
         sections.push(el_view_authenticate = dom_query("#view_authenticate"));
         sections.push(el_view_savelocal = dom_query("#view_savelocal"));
         sections.push(el_view_about = dom_query("#view_about"));
         sections.push(el_view_github = dom_query("#view_github"));
+        
+        // NAVIGATION ELEMENTS
         nav.push(el_nav_authenticate = dom_query("#nav_authenticate"));
         nav.push(el_nav_loadlocal = dom_query("#nav_loadlocal"));
         nav.push(el_nav_savelocal = dom_query("#nav_savelocal"));
@@ -661,6 +681,8 @@ const App = (function () {
         nav.push(el_nav_deauthorize = dom_query("#nav_deauthorize"));
         nav.push(el_nav_about = dom_query("#nav_about"));
         nav.push(el_nav_close = dom_query("#nav_close"));
+        
+        // INPUT ELEMENTS
         el_nav_loadlocal_file = dom_query("input", el_nav_loadlocal);
         el_view_doc_text = dom_query("#view_doc_text");
         el_view_authenticate_password = dom_query("#view_authenticate_password");
@@ -682,6 +704,7 @@ const App = (function () {
         hide(el_popover_message);
         toggle_nav_view_doc();
 
+        // EVENT HANDLERS
         add_click_handler(el_nav_savelocal, nav_savelocal_click_handler);
         add_click_handler(el_nav_github, nav_github_click_handler);
         add_click_handler(el_nav_about, nav_about_click_handler);
@@ -697,19 +720,13 @@ const App = (function () {
         add_keyup_handler(el_view_savelocal, view_dynamic_default_keyup_handler);
         add_keyup_handler(el_view_github, view_dynamic_default_keyup_handler);
 
-        // add validation
-        el_view_github_master_password.secpad_validator = function() {
-            if (el_view_github_master_password.value === el_view_github_confirm_password.value) {
-                return true;
-            } else {
-                return false;
-            }
-        };
-        el_view_github_confirm_password.secpad_validator = el_view_github_master_password.secpad_validator;
-        el_view_github_username.secpad_validator = validate_input_has_value;
-        el_view_github_password.secpad_validator = validate_input_has_value;
-        el_view_github_reponame.secpad_validator = validate_input_has_value;
-        el_view_github_filepath.secpad_validator = validate_input_has_value;
+        // VALIDATION
+        add_validator(el_view_github_master_password, validate_github_master_password);
+        add_validator(el_view_github_confirm_password, validate_github_master_password);
+        add_validator(el_view_github_username, validate_input_required);
+        add_validator(el_view_github_password, validate_input_required);
+        add_validator(el_view_github_reponame, validate_input_required);
+        add_validator(el_view_github_filepath, validate_input_required);
 
         interval_id = setInterval(timer_tick_handler, GLOBAL_INTERVAL_MILLISECONDS);
 
