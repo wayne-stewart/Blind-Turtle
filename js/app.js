@@ -125,12 +125,12 @@ const App = (function () {
         return Array.prototype.map.call(new Uint8Array(this), x => ("00" + x.toString(16)).slice(-2)).join('');
     };
 
+    const HEX_CHARS = "0123456789abcdef";
     String.prototype.to_arraybuffer_from_hex = function() {
         const buffer = new ArrayBuffer(this.length / 2);
         const buffer_view = new Uint8Array(buffer);
         for (let i = 0, j = 0; i < this.length; i+=2, j++) {
-            buffer_view[j] = parseInt(this[i]) * 16 + parseInt(this[i+1]);
-            //console.log(buffer_view);
+            buffer_view[j] = HEX_CHARS.indexOf(this[i]) * 16 + HEX_CHARS.indexOf(this[i+1]);
         }
         return buffer;
     };
@@ -217,14 +217,18 @@ const App = (function () {
             plaindata);
 
         const version = new Uint8Array([1]);
-        const encrypted = concatenate_buffers(version, info.aes.iv, info.pbkdf2.salt, encrypted_data);
+        const encrypted = concatenate_buffers(
+            version, 
+            info.aes.iv, 
+            info.pbkdf2.salt, 
+            new Uint8Array(encrypted_data));
         const hex_encoded = encrypted.to_hex_string();
         return hex_encoded;
     };
     window.encrypt_aes_gcm = encrypt_aes_gcm;
 
     const decrypt_aes_gcm = async function(password, cipherdata) {
-        cipherdata = cipherdata.to_arraybuffer_from_hex(cipherdata);
+        cipherdata = cipherdata.to_arraybuffer_from_hex();
         const version = new Uint8Array(cipherdata, 0, 1);
         const iv = new Uint8Array(cipherdata, 1, 12);
         const salt = new Uint8Array(cipherdata, 13, 16);
