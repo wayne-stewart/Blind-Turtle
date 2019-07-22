@@ -97,19 +97,25 @@ const App = (function () {
         arguments: none
         returns: a new instance of an ArrayBuffer filled with values copied from the string */
     String.prototype.to_arraybuffer = function() {
-        const buffer = new ArrayBuffer(this.length * 2);
-        const bufferView = new Uint16Array(buffer);
-        for (let i = 0, l = this.length; i < l; i++) {
-            bufferView[i] = this.charCodeAt(i);
-        }
-        return buffer;
+        // const buffer = new ArrayBuffer(this.length * 2);
+        // const bufferView = new Uint16Array(buffer);
+        // for (let i = 0, l = this.length; i < l; i++) {
+        //     bufferView[i] = this.charCodeAt(i);
+        // }
+        // return buffer;
+        const encoder = new TextEncoder();
+        const buffer_view = encoder.encode(this);
+        return buffer_view.buffer;
     };
 
     /*  ArrayBuffer.prototype.to_string
         arguments: none
         returns: a string filled with values copied from the ArrayBuffer */
     ArrayBuffer.prototype.to_string = function() {
-        return String.fromCharCode.apply(null, new Uint16Array(this));
+        //return String.fromCharCode.apply(null, new Uint16Array(this));
+        const decoder = new TextDecoder("utf-8", {fatal: true});
+        const text = decoder.decode(this);
+        return text;
     };
 
     /*  ArrayBuffer.prototype.to_hex_string
@@ -118,9 +124,32 @@ const App = (function () {
     ArrayBuffer.prototype.to_hex_string = function() {
         return Array.prototype.map.call(new Uint8Array(this), x => ("00" + x.toString(16)).slice(-2)).join('');
     };
+
+    String.prototype.to_arraybuffer_from_hex = function() {
+        const buffer = new ArrayBuffer(this.length / 2);
+        const buffer_view = new Uint8Array(buffer);
+        for (let i = 0, j = 0; i < this.length; i+=2, j++) {
+            buffer_view[j] = parseInt(this[i]) * 16 + parseInt(this[i+1]);
+            //console.log(buffer_view);
+        }
+        return buffer;
+    };
     /* #endregion */
 
     /* #region CRYPTO */
+    const concatenate_buffers = function(/* buffer list */) {
+        let length = 0;
+        each(arguments, arg => { length += arg.byteLength; });
+        let buffer = new ArrayBuffer(length);
+        let buffer_view = new Uint8Array(buffer);
+        let index = 0;
+        each(arguments, item => { for (let i = 0; i < item.length; i++) { 
+            buffer_view[index] = item[i];
+            index++;
+        }});
+        return buffer;
+    };
+
     /*  hash_string_sha256
         argument[0]: string to be hashed
         returns: promise with arraybuffer as result*/
@@ -137,28 +166,81 @@ const App = (function () {
         return sjcl.decrypt(password, cipher);
     };
 
+    const create_encrypt_info = async function(password, iv, salt) {
+        if (!is_instantiated(iv)) {
+            iv = crypto.getRandomValues(new Uint8Array(12));
+        }
+        if (!is_instantiated(salt)) {
+            salt = crypto.getRandomValues(new Uint8Array(16));
+        }
+        const aes_param = { 
+            name: "AES-GCM", 
+            iv: iv,
+            additionalData: "secpad-auth".to_arraybuffer(), 
+            tagLength: 128,     // tag length in bits
+            length: 256         // key length in bits
+        };
+        password = password.to_arraybuffer();
+        const pbkdf2_param = {
+            name: "PBKDF2",
+            hash: "SHA-256",
+            salt: salt,
+            iterations: 300143
+        };
+        const key_material = await crypto.subtle.importKey(
+            "raw",                          // foramt
+            password,
+            pbkdf2_param,                   // uses { name: 'value' }
+            false,                          // extratable
+            ["deriveBits", "deriveKey"]);   // usages
+        const key = await crypto.subtle.deriveKey(
+            pbkdf2_param,
+            key_material,
+            aes_param,
+            false,                           // extractable
+            ["encrypt", "decrypt"]);         // usages
+        
+        return {
+            aes: aes_param,
+            pbkdf2: pbkdf2_param,
+            key: key
+        };
+    };
+
     // the CryptoKey api isn't supported on Safari or IE at this time
-    // const encrypt_aes_gcm = function(password, plaintext) {
-    //     const aes_param = { 
-    //         name: "AES-GCM", 
-    //         iv: crypto.getRandomValues(new Uint8Array(12)), 
-    //         additionalData: "secpad-auth".to_arraybuffer(), 
-    //         tagLength: 128
-    //     };
-    //     const encoder = new TextEncoder();
-    //     const encoded = encoder.encode(plaintext);
-    //     const pbkdf2_param = {
-    //         name: "PBKDF2",
-    //         hash: "SHA-256",
-    //         salt: crypto.getRandomValues(new Uint8Array(16)),
-    //         iterations: 3797
-    //     };
-    //     const base_key = crypto.
-    // };
+    const encrypt_aes_gcm = async function(password, plaindata) {
+        const info = await create_encrypt_info(password);
+        plaindata = plaindata.to_arraybuffer();
+        const encrypted_data = await crypto.subtle.encrypt(
+            info.aes,
+            info.key,
+            plaindata);
 
-    // const decrypt_aes_gcm = function(password, ciphertext) {
+        const version = new Uint8Array([1]);
+        const encrypted = concatenate_buffers(version, info.aes.iv, info.pbkdf2.salt, encrypted_data);
+        const hex_encoded = encrypted.to_hex_string();
+        return hex_encoded;
+    };
+    window.encrypt_aes_gcm = encrypt_aes_gcm;
 
-    // };
+    const decrypt_aes_gcm = async function(password, cipherdata) {
+        cipherdata = cipherdata.to_arraybuffer_from_hex(cipherdata);
+        const version = new Uint8Array(cipherdata, 0, 1);
+        const iv = new Uint8Array(cipherdata, 1, 12);
+        const salt = new Uint8Array(cipherdata, 13, 16);
+        const encrypted = new Uint8Array(cipherdata, 29);
+        if (version[0] !== 1) {
+            throw "Invalid Version: " + version[0] + " Expected: 1";
+        }
+        const info = await create_encrypt_info(password, iv, salt); 
+        const plaindata = await crypto.subtle.decrypt(
+            info.aes,
+            info.key,
+            encrypted);
+        const plaintext = plaindata.to_string();
+        return plaintext;
+    };
+    window.decrypt_aes_gcm = decrypt_aes_gcm;
     /* #endregion */
 
     /* #region DOM WRAPPERS */
