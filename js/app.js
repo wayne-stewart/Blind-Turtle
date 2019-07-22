@@ -5,6 +5,7 @@ const App = (function () {
     const LOCAL_STORAGE_DATA_KEY = "secpad_data";
     const LOCAL_STORAGE_CONFIG_KEY = "secpad_config";
     const GITHUB_REPO_URL = "https://api.github.com/repos";
+    const HEX_CHARS = "0123456789abcdef";
     const EDIT_COUNTDOWN_TO_SAVE = 2;
     const GLOBAL_INTERVAL_MILLISECONDS = 1000;
     const LOG_DEBUG = 10;
@@ -125,7 +126,6 @@ const App = (function () {
         return Array.prototype.map.call(new Uint8Array(this), x => ("00" + x.toString(16)).slice(-2)).join('');
     };
 
-    const HEX_CHARS = "0123456789abcdef";
     String.prototype.to_arraybuffer_from_hex = function() {
         const buffer = new ArrayBuffer(this.length / 2);
         const buffer_view = new Uint8Array(buffer);
