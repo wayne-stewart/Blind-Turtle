@@ -24,10 +24,6 @@ const App = (function () {
         /* user state */
         log_level = LOG_DEBUG,
         master_password = "",
-        github_username = "",
-        github_password = "",
-        github_reponame = "",
-        github_filepath = "",
         loaded_cipher_text = null,
 
         /* dom elements */
@@ -66,20 +62,6 @@ const App = (function () {
 
     const set_master_password = function(password) {
         master_password = password;
-    };
-    const get_github_info = function() {
-        return {
-            username: github_username,
-            password: github_password,
-            reponame: github_reponame,
-            filepath: github_filepath
-        }
-    };
-    const set_github_info = function(info) {
-        github_username = info.username;
-        github_password = info.password;
-        github_reponame = info.reponame;
-        github_filepath = info.filepath;
     };
 
     /* #endregion */
@@ -157,13 +139,19 @@ const App = (function () {
         return crypto.subtle.digest("SHA-256", to_be_hashed.to_arraybuffer())
     };
 
-    const encrypt = function(password, text) {
-        const sjcl_parameters = { mode: "gcm", ts: 128, adata: "secpad-auth", iter: 15000 };
-        return sjcl.encrypt(password, text, sjcl_parameters);
+    const encrypt_string_to_base64 = async function(password, plaintext) {
+        // const sjcl_parameters = { mode: "gcm", ts: 128, adata: "secpad-auth", iter: 15000 };
+        // return sjcl.encrypt(password, text, sjcl_parameters);
+        let input_buffer = plaintext.to_arraybuffer();
+        return await encrypt_aes_gcm(password, input_buffer)
+            .then(output_buffer => StringView.bytesToBase64(new Uint8Array(output_buffer)));
     };
 
-    const decrypt = function(password, cipher) {
-        return sjcl.decrypt(password, cipher);
+    const decrypt_base64_to_string = async function(password, base64_data) {
+        // return sjcl.decrypt(password, cipher);
+        let input_buffer = StringView.base64ToBytes(base64_data);
+        return await decrypt_aes_gcm(password, input_buffer.buffer)
+            .then(output_buffer => output_buffer.to_string());
     };
 
     const create_encrypt_info = async function(password, iv, salt) {
@@ -208,43 +196,36 @@ const App = (function () {
     };
 
     // the CryptoKey api isn't supported on Safari or IE at this time
-    const encrypt_aes_gcm = async function(password, plaindata) {
+    const encrypt_aes_gcm = async function(password, input_buffer) {
         const info = await create_encrypt_info(password);
-        plaindata = plaindata.to_arraybuffer();
         const encrypted_data = await crypto.subtle.encrypt(
             info.aes,
             info.key,
-            plaindata);
-
+            input_buffer);
         const version = new Uint8Array([1]);
-        const encrypted = concatenate_buffers(
+        const output_buffer = concatenate_buffers(
             version, 
             info.aes.iv, 
             info.pbkdf2.salt, 
             new Uint8Array(encrypted_data));
-        const hex_encoded = encrypted.to_hex_string();
-        return hex_encoded;
+        return output_buffer;
     };
-    window.encrypt_aes_gcm = encrypt_aes_gcm;
 
-    const decrypt_aes_gcm = async function(password, cipherdata) {
-        cipherdata = cipherdata.to_arraybuffer_from_hex();
-        const version = new Uint8Array(cipherdata, 0, 1);
-        const iv = new Uint8Array(cipherdata, 1, 12);
-        const salt = new Uint8Array(cipherdata, 13, 16);
-        const encrypted = new Uint8Array(cipherdata, 29);
+    const decrypt_aes_gcm = async function(password, input_buffer) {
+        const version = new Uint8Array(input_buffer, 0, 1);
+        const iv = new Uint8Array(input_buffer, 1, 12);
+        const salt = new Uint8Array(input_buffer, 13, 16);
+        const encrypted_data = new Uint8Array(input_buffer, 29);
         if (version[0] !== 1) {
             throw "Invalid Version: " + version[0] + " Expected: 1";
         }
         const info = await create_encrypt_info(password, iv, salt); 
-        const plaindata = await crypto.subtle.decrypt(
+        const output_buffer = await crypto.subtle.decrypt(
             info.aes,
             info.key,
-            encrypted);
-        const plaintext = plaindata.to_string();
-        return plaintext;
+            encrypted_data);
+        return output_buffer;
     };
-    window.decrypt_aes_gcm = decrypt_aes_gcm;
     /* #endregion */
 
     /* #region DOM WRAPPERS */
@@ -334,8 +315,11 @@ const App = (function () {
         return localStorage.getItem(key);
     };
 
-    const set_local = function (key, value) {
-        localStorage.setItem(key, value);
+    const set_local = async function (key, value) {
+        const password = get_master_password();
+        const json = JSON.stringify(value);
+        const encrypted_value = await encrypt_string_to_base64(password, json);
+        localStorage.setItem(key, encrypted_value);
     };
     /* #endregion */
 
@@ -697,6 +681,7 @@ const App = (function () {
 
     /* #endregion */
 
+    /* #region VALIDATION */
     const validate = function (el_container) {
         return new Promise((resolve, reject) => {
             let is_valid = true;
@@ -747,6 +732,7 @@ const App = (function () {
             return false;
         }
     };
+    /* #endregion */
 
     const app_start = function () {
 
@@ -771,6 +757,7 @@ const App = (function () {
         // INPUT ELEMENTS
         el_nav_loadlocal_file = dom_query("input", el_nav_loadlocal);
         el_view_doc_text = dom_query("#view_doc_text");
+        el_view_doc_text.value = "";
         el_view_authenticate_password = dom_query("#view_authenticate_password");
         el_view_authenticate_error = dom_query("#view_authenticate_error");
         el_view_savelocal_filename = dom_query("#view_savelocal_filename");
