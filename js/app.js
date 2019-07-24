@@ -311,8 +311,12 @@ const App = (function () {
         add_event_listener(el, "paste", handler);
     };
 
-    const get_local = function (key) {
-        return localStorage.getItem(key);
+    const get_local = async function (key) {
+        const password = get_master_password();
+        const encrypted_value = localStorage.getItem(key);
+        const json = await decrypt_base64_to_string(password, encrypted_value);
+        const obj = JSON.parse(json);
+        return obj;
     };
 
     const set_local = async function (key, value) {
@@ -618,12 +622,14 @@ const App = (function () {
                 return new Promise((resolve, reject) => {
                     if (success) {
                         set_master_password(el_view_github_master_password.value);
-                        set_github_info({
+                        let info = {
+                            type: "github",
                             username: el_view_github_username.value,
                             password: el_view_github_password.value,
                             reponame: el_view_github_reponame.value,
                             filepath: el_view_github_filepath.value
-                        });
+                        };
+                        set_local(LOCAL_STORAGE_CONFIG_KEY, info);
                     } else {
                         reject("Github Validation Failed");
                     }
@@ -803,11 +809,11 @@ const App = (function () {
 
         interval_id = setInterval(timer_tick_handler, GLOBAL_INTERVAL_MILLISECONDS);
 
-        const stored_data = get_local(LOCAL_STORAGE_DATA_KEY);
-        const stored_config = get_local(LOCAL_STORAGE_CONFIG_KEY);
-        if (stored_data) {
-            el_view_doc_text.value = stored_data;
-        }
+        // const stored_data = get_local(LOCAL_STORAGE_DATA_KEY);
+        // const stored_config = get_local(LOCAL_STORAGE_CONFIG_KEY);
+        // if (stored_data) {
+        //     el_view_doc_text.value = stored_data;
+        // }
     };
 
     if (document.readyState === "complete" || document.readyState === "loaded") {
