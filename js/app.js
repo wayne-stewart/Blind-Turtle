@@ -742,6 +742,9 @@ const App = (function () {
 
     /* #region TESTS */
     const _test_result_container;
+    const _test_ascii_keyboard_characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}\\|;:'\",<.>/?`~ \t";
+    const _test_ascii_keyboard_characters_to_hex = "6162636465666768696a6b6c6d6e6f707172737475767778797a4142434445464748494a4b4c4d4e4f505152535455565758595a3031323334353637383921402324255e262a28295f2b2d3d5b5d7b7d5c7c3b3a27222c3c2e3e2f3f607e2009";
+    
     const _test_write_success = function(test_name) {
         if (is_instantiated(_test_result_container)) {
             let el = document.createElement("li");
@@ -760,24 +763,50 @@ const App = (function () {
         }
     };
 
-    const _test_runner = function(test_lambda) {
-        return new Promise((resolve, reject) => {
+    const _test_runner = function(test_name, test_lambda) {
+        return (new Promise((resolve, reject) => {
             try {
                 let ret = test_lambda();
                 if (typeof ret === "object" && ret.constructor === Promise) {
-                    ret.then(resolve);
-                    ret.catch(reject);
+                    ret.then(() => resolve({name: test_name, error: ""}));
+                    ret.catch(ex => reject({name: test_name, error: ex}));
                 } else {
-                    resolve();
+                    resolve({name: test_name, error: ""});
                 }
             } catch (ex) {
-                reject(ex);
+                reject({name: test_name, error: ex});
             }
+        }))
+        .then(success_result => {
+            _test_write_success(success_result.name);
+        }, error_result => {
+            _test_write_failure(error_result.name, error_result.error);
         });
     };
 
-    const _test_run = function() {
+    const _test_assert_equals = function(expected, actual) {
+        if (expected !== actual) {
+            throw "expected: " + expected + " actual: " + actual;
+        }
+    };
 
+    const _test_suite = async function() {
+        await _test_runner("to_arraybuffer().to_string()", () => {
+            let utf8_arraybuffer = _test_ascii_keyboard_characters.to_arraybuffer();
+            let str = utf8_arraybuffer.to_string();
+            _test_assert_equals(_test_ascii_keyboard_characters.length, utf8_arraybuffer.bytelength);
+            _test_assert_equals(_test_ascii_keyboard_characters, str);
+        });
+
+        await _test_runner("to_hex_string().to_arraybuffer_from_hex", () => {
+            let buffer1 = _test_ascii_keyboard_characters.to_arraybuffer();
+            let hex_string = utf8_arraybuffer.to_hex_string();
+            _test_assert_equals(_test_ascii_keyboard_characters_to_hex, hex_string);
+            let buffer2 = hex_string.to_arraybuffer_from_hex();
+            _test_assert_equals(_test_ascii_keyboard_characters.length, buffer2.bytelength);
+            let str = buffer2.to_string();
+            _test_assert_equals(_test_ascii_keyboard_characters, str);
+        });
     };
     /* #endregion */
 
