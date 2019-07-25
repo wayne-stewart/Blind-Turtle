@@ -740,6 +740,47 @@ const App = (function () {
     };
     /* #endregion */
 
+    /* #region TESTS */
+    const _test_result_container;
+    const _test_write_success = function(test_name) {
+        if (is_instantiated(_test_result_container)) {
+            let el = document.createElement("li");
+            el.innerHTML = test_name;
+            el.classList.add("green");
+            _test_result_container.append(el);
+        }
+    };
+
+    const _test_write_failure = function(test_name, message) {
+        if (is_instantiated(_test_result_container)) {
+            let el = document.createElement("li");
+            el.innerHTML = test_name + "<br />" + message;
+            el.classList.add("red");
+            _test_result_container.append(el);
+        }
+    };
+
+    const _test_runner = function(test_lambda) {
+        return new Promise((resolve, reject) => {
+            try {
+                let ret = test_lambda();
+                if (typeof ret === "object" && ret.constructor === Promise) {
+                    ret.then(resolve);
+                    ret.catch(reject);
+                } else {
+                    resolve();
+                }
+            } catch (ex) {
+                reject(ex);
+            }
+        });
+    };
+
+    const _test_run = function() {
+
+    };
+    /* #endregion */
+
     const app_start = function () {
 
         // SECTIONS ( VIEWS )
