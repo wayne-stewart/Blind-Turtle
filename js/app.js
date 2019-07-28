@@ -5,14 +5,13 @@ const App = (function () {
     const LOCAL_STORAGE_DATA_KEY = "secpad_data";
     const LOCAL_STORAGE_CONFIG_KEY = "secpad_config";
     const GITHUB_REPO_URL = "https://api.github.com/repos";
-    const HEX_CHARS = "0123456789abcdef";
     const EDIT_COUNTDOWN_TO_SAVE = 2;
     const GLOBAL_INTERVAL_MILLISECONDS = 1000;
     const LOG_DEBUG = 10;
     const LOG_ERROR = 1;
     const LOG_OFF = 0;
 
-        /* application state */
+    /* application state */
     let sections = [],
         nav = [],
         animation_queue = [],
@@ -23,38 +22,7 @@ const App = (function () {
 
         /* user state */
         log_level = LOG_DEBUG,
-        master_password = "",
-        loaded_cipher_text = null,
-
-        /* dom elements */
-        el_view_doc,
-        el_view_authenticate,
-        el_view_savelocal,
-        el_view_about,
-        el_view_github,
-        el_nav_authenticate,
-        el_nav_loadlocal,
-        el_nav_loadlocal_file,
-        el_nav_savelocal,
-        el_nav_save,
-        el_nav_cancel,
-        el_nav_about,
-        el_nav_close,
-        el_nav_github,
-        el_nav_deauthorize,
-        el_view_doc_text,
-        el_view_savelocal_filename,
-        el_view_savelocal_password,
-        el_view_savelocal_error,
-        el_popover_message,
-        el_view_authenticate_password,
-        el_view_authenticate_error,
-        el_view_github_master_password,
-        el_view_github_confirm_password,
-        el_view_github_username,
-        el_view_github_password,
-        el_view_github_reponame,
-        el_view_github_filepath;
+        master_password = ""
 
     const get_master_password = function() {
         return master_password;
@@ -71,50 +39,6 @@ const App = (function () {
         if (is_instantiated(console) && is_instantiated(console.log)) {
             console.log(message);
         }
-    };
-    /* #endregion */
-
-    /* #region EXTENSIONS */
-
-    /*  String.prototype.to_arraybuffer
-        arguments: none
-        returns: a new instance of an ArrayBuffer filled with values copied from the string */
-    String.prototype.to_arraybuffer = function() {
-        // const buffer = new ArrayBuffer(this.length * 2);
-        // const bufferView = new Uint16Array(buffer);
-        // for (let i = 0, l = this.length; i < l; i++) {
-        //     bufferView[i] = this.charCodeAt(i);
-        // }
-        // return buffer;
-        const encoder = new TextEncoder();
-        const buffer_view = encoder.encode(this);
-        return buffer_view.buffer;
-    };
-
-    /*  ArrayBuffer.prototype.to_string
-        arguments: none
-        returns: a string filled with values copied from the ArrayBuffer */
-    ArrayBuffer.prototype.to_string = function() {
-        //return String.fromCharCode.apply(null, new Uint16Array(this));
-        const decoder = new TextDecoder("utf-8", {fatal: true});
-        const text = decoder.decode(this);
-        return text;
-    };
-
-    /*  ArrayBuffer.prototype.to_hex_string
-        arguments: none
-        returns: a string filled with hex values values copied from the ArrayBuffer */
-    ArrayBuffer.prototype.to_hex_string = function() {
-        return Array.prototype.map.call(new Uint8Array(this), x => ("00" + x.toString(16)).slice(-2)).join('');
-    };
-
-    String.prototype.to_arraybuffer_from_hex = function() {
-        const buffer = new ArrayBuffer(this.length / 2);
-        const buffer_view = new Uint8Array(buffer);
-        for (let i = 0, j = 0; i < this.length; i+=2, j++) {
-            buffer_view[j] = HEX_CHARS.indexOf(this[i]) * 16 + HEX_CHARS.indexOf(this[i+1]);
-        }
-        return buffer;
     };
     /* #endregion */
 
@@ -228,39 +152,27 @@ const App = (function () {
     };
     /* #endregion */
 
-    /* #region DOM WRAPPERS */
+    /* #region UTIL */
     const is_function       = obj => (typeof obj === "function");
     const is_instantiated   = obj => !(obj === null || typeof obj === "undefined");
+    const is_elementnode    = obj => (typeof obj === "object" && obj.nodeType === document.ELEMENT_NODE);
+    const is_string         = obj => (typeof obj === "string");
+    const is_object         = obj => (typeof obj === "object");
+    const is_boolean        = obj => (typeof obj === "boolean");
+    const is_array          = obj => (typeof obj === "object" && obj.constructor === Array);
     const swap              = (array, i, j) => { let temp = array[i]; array[i] = array[j]; array[j] = temp; };
-    const each              = (array, callback) => { 
-        for (let i = 0; i < array.length; i++) {
-            callback(array[i], i, array);
-        }
-    };
-    const remove            = (array, item) => {
-        for(let i = 0; i < array.length; i++) {
-            if (array[i] === item) {
-                swap(array, i, array.length - 1);
-                array.pop();
-            }
-        }
-    };
-
-    const dom_query = function (selector, el) {
-        let result;
-        if (el) {
-            result = el.querySelectorAll(selector);
-        } else {
-            result = document.querySelectorAll(selector);
-        }
-        if (result) {
-            if (result.length === 1) {
-                return result[0];
-            } else {
-                return result;
-            }
-        }
-    };
+    const each              = (array, callback) => { for (let i = 0; i < array.length; i++) callback(array[i], i, array); };
+    const remove            = (array, item) => { for(let i = 0; i < array.length; i++) { if (array[i] === item) { swap(array, i, array.length - 1);array.pop();}}};
+    const skip              = (array, count) => array.slice(count);
+    const first             = array => array[0];
+    const last              = array => array[array.length-1];
+    const query             = (selector, el) => is_instantiated(el) ? el.querySelector(selector) : document.querySelector(selector);
+    const query_all         = (selector, el) => is_instantiated(el) ? el.querySelectorAll(selector) : document.querySelectorAll(selector);
+    const add_listener      = (el, event, listener) => el.addEventListener(event, listener, false);
+    const string_to_buffer  = string => (new TextEncoder()).encode(string).buffer;
+    const buffer_to_string  = buffer => (new TextDecoder("utf-8", {fatal:true})).decode(buffer);
+    const buffer_to_hex     = buffer => Array.prototype.map.call(new Uint8Array(buffer), x=>("00" + x.toString(16)).slice(-2)).join('');
+    const hex_to_buffer     = hex => { const buffer = new Uint8Array(hex.length / 2); for (let i = 0, j = 0; i < hex.length; i+=2, j++) buffer[j] = "0123456789abcdef".indexOf(hex[i]) * 16 + "0123456789abcdef".indexOf(hex[i+1]); return buffer.buffer; };
 
     const center = function(el, center_on) {
         if (!is_instantiated(center_on)) {
@@ -287,30 +199,6 @@ const App = (function () {
         }
     };
 
-    const add_event_listener = function (el, event_name, handler) {
-        el.addEventListener(event_name, handler);
-    };
-
-    const add_click_handler = function (el, handler) {
-        add_event_listener(el, "click", handler);
-    };
-
-    const add_change_handler = function (el, handler) {
-        add_event_listener(el, "change", handler);
-    };
-
-    const add_keydown_handler = function (el, handler) {
-        add_event_listener(el, "keydown", handler)
-    };
-
-    const add_keyup_handler = function(el, handler) {
-        add_event_listener(el, "keyup", handler);
-    };
-
-    const add_paste_handler = function (el, handler) {
-        add_event_listener(el, "paste", handler);
-    };
-
     const get_local = async function (key) {
         const password = get_master_password();
         const encrypted_value = localStorage.getItem(key);
@@ -325,6 +213,183 @@ const App = (function () {
         const encrypted_value = await encrypt_string_to_base64(password, json);
         localStorage.setItem(key, encrypted_value);
     };
+    /* #endregion */
+
+    /* #region UI RENDERING, CONTROLS, MODEL BINDING */
+    const render = function(/* variable number of arguments */) {
+        // state machine
+        let state = 0;
+        let arg_index = 0;
+        let arg = arguments[arg_index++];
+        let el = null;
+
+        while(is_instantiated(arg))
+        {
+            switch(state)
+            {
+                // initial state, we are testing the first argument
+                // if it is an element node, then we are appending
+                // all subsequent nodes as children to the first node
+                // if it is a string, we treat it as a tag name and
+                // create an element from it. in this case, subsequent
+                // arguments will be modifying this node.
+                case 0:
+                    if (is_elementnode(arg)) {
+                        state = 1;
+                        el = arg;
+                        el.innerHTML = "";
+                    }
+                    else if (is_string(arg)) {
+                        state = 2;
+                        el = document.createElement(arg);
+                    }
+                    else {
+                        "First argument must be a dom element or tag name";
+                    }
+                    break;
+                
+                // state 1: append all nodes to the root node
+                case 1:
+                    if (is_elementnode(arg)) {
+                        el.appendChild(arg);
+                    }
+                    else {
+                        throw "Argument must be a dom element";
+                    }
+                    break;
+                
+                // state 2: we are modifying the node we created initially
+                case 2:
+                    if (is_string(arg)) {
+                        el.innerHTML = arg;
+                    }
+                    else if (is_array(arg)) {
+                        each(arg, item => el.appendChild(item));
+                    }
+                    else if (is_object(arg)) {
+                        for (let property in arg) {
+                            el[property] = arg[property];
+                        }
+                    }
+                    else {
+                        throw "Uknown argument";
+                    }
+                    break;
+            }
+            arg = arg = arguments[arg_index++];
+        }
+
+        return el;
+    };
+
+    const template = function(template_name) {
+        return query("template#" + template_name).innerHTML;
+    };
+
+    const push_nav = function(controller) {
+        nav.push(controller);
+        controller.view(document.body);
+    };
+
+    const pop_nav = function() {
+        let popped = nav.pop();
+        last(nav).view(document.body);
+        return popped;
+    };
+
+    const nav_button = function(title, click_handler) {
+        return render("button", { title: title, onclick: click_handler }, title);
+    };
+
+    const form_input = function(options) {
+        return render("div", { className: "form-control" }, [
+            render("input", options),
+            render("span", { className: "error" })
+        ]);
+    };
+
+    const form_password = function(options) {
+        options.type = "password";
+        return form_input(options);
+    };
+
+    const form_file = function(options) {
+        options.type = "file";
+        return form_input(options);
+    };
+    /* #endregion */
+
+    /* #region CONTROLLERS AND VIEWS */
+
+    const MainController = function() {
+        const model = {};
+        const load_from_file_change_handler = function() {
+
+        };
+        const save_to_file_click_handler = function() {
+
+        };
+        const connect_github_click_handler = function() {
+
+        };
+        this.view = function(root) {
+            render(root,
+                render("nav", [
+                    nav_button("Load from File", () => push_nav(new LoadLocalFileController())),
+                    nav_button("Save to File", save_to_file_click_handler),
+                    nav_button("Connect Github", connect_github_click_handler),
+                    nav_button("About", () => push_nav(new AboutController())),
+                ]),
+                render("p", {"contentEditable": true}));
+        };
+    };
+
+    const AboutController = function() {
+        const model = {};
+        this.view = function(root) {
+            render(root, 
+                render("nav", [
+                    nav_button("Close", pop_nav)
+                ]),
+                render("div", { className: "about_view" }, template("view_about")));
+        };
+    };
+
+    const LoadLocalFileController = function() {
+        const model = {
+            form_password: form_password({ 
+                placeholder: "Password",
+                onchange: e => { model.password = e.target.value; }})
+        };
+        const authenticate_handler = async function() {
+            if (model.file) {
+                const file_reader = new FileReader();
+                file_reader.onload = function() {
+                    try {
+                        const cipher_text = file_reader.result;
+                        const plain_text = await decrypt_base64_to_string(model.password, cipher_text);
+                        pop_nav();
+                    }
+                    catch(ex) {
+
+                    }
+                };
+                file_reader.readAsText(model.file);
+            }
+        };
+        this.view = function(root) {
+            render(root,
+                render("nav",[
+                    nav_button("Authenticate", authenticate_handler),
+                    nav_button("Cancel", pop_nav)
+                ]),
+                form_file({
+                    onchange: e => { model.file = e.target.files[0]; }
+                }),
+                model.form_password);
+        };
+    };
+
     /* #endregion */
 
     /* #region ANIMATION  */
@@ -393,53 +458,7 @@ const App = (function () {
     };
     /* #endregion */
 
-    /* #region NAVIGATION */
-    const toggle_section = function(el) {
-        for (let i = 0; i < sections.length; i++) {
-            if (sections[i] === el) {
-                show(sections[i]);
-            } else {
-                hide(sections[i]);
-            }
-        }
-    };
-
-    const toggle_nav = function (/* variable number of nav element arguments */) {
-        for (let i = 0; i < nav.length; i++) {
-            hide(nav[i]);
-        }
-        for (let i = 0; i < arguments.length; i++) {
-            show(arguments[i]);
-        }
-    };
-
-    const toggle_nav_view_doc = function () {
-        toggle_nav(el_nav_loadlocal, el_nav_savelocal, el_nav_github, el_nav_about);
-        toggle_section(el_view_doc);
-    };
-    /* #endregion */
-
     /* #region HANDLERS */
-
-    const clear_for_safety = function() {
-        log("clear_for_safety called");
-        each(dom_query("input"), item => {
-            item.value = ""; 
-            item.classList.remove("error"); });
-        loaded_cipher_text = null;
-        each(dom_query("nav a"), item => item.secpad_click_handler = null);
-        each(dom_query("section"), item => {
-            item.secpad_default_enter_press_handler = null;
-            item.secpad_default_esc_press_handler = null; });
-    };
-
-    const nav_dynamic_click_handler = function (evnt) {
-        if (is_function(evnt.target.secpad_click_handler)) {
-            evnt.target.secpad_click_handler(evnt)
-                .then(clear_for_safety)
-                .catch(error => { log(error); });
-        }
-    };
 
     const view_dynamic_default_keyup_handler = function(evnt) {
         const key = evnt.key;
@@ -461,18 +480,6 @@ const App = (function () {
                 }
             }
         }
-    };
-
-    const nav_about_click_handler = function () {
-        toggle_nav(el_nav_close);
-        toggle_section(el_view_about);
-
-        el_nav_close.secpad_click_handler = () => {
-            return new Promise((resolve, reject) => {
-                toggle_nav_view_doc();
-                resolve();
-            });
-        };
     };
 
     const view_doc_text_edit_handler = function (e) {
@@ -562,22 +569,6 @@ const App = (function () {
     /* #endregion */
 
     /* #region LOAD LOCAL ( LOAD FROM FILE ) */
-    const nav_loadlocal_file_change_handler = function () {
-        if (el_nav_loadlocal_file.files.length > 0) {
-            var file_reader = new FileReader();
-            file_reader.onload = function () {
-                loaded_cipher_text = file_reader.result;
-                toggle_nav(el_nav_authenticate, el_nav_cancel);
-                toggle_section(el_view_authenticate);
-                el_nav_authenticate.secpad_click_handler = nav_loadlocal_auth_handler;
-                el_nav_cancel.secpad_click_handler = nav_loadlocal_cancel_handler;
-                el_view_authenticate.secpad_default_enter_press_handler = nav_loadlocal_auth_handler;
-                el_view_authenticate.secpad_default_esc_press_handler = nav_loadlocal_cancel_handler;
-                el_view_authenticate_password.focus();
-            };
-            file_reader.readAsText(el_nav_loadlocal_file.files[0])
-        }
-    };
 
     const nav_loadlocal_auth_handler = function() {
         return new Promise(function(resolve, reject) {
@@ -691,7 +682,7 @@ const App = (function () {
     const validate = function (el_container) {
         return new Promise((resolve, reject) => {
             let is_valid = true;
-            each(dom_query("input", el_container), el => {
+            each(query_all("input", el_container), el => {
                 let el_is_valid = true;
                 if (el.validators && el.validators.length > 0) {
                     each(el.validators, validator => {
@@ -741,14 +732,14 @@ const App = (function () {
     /* #endregion */
 
     /* #region TESTS */
-    const _test_result_container;
+    let _test_result_container;
     const _test_ascii_keyboard_characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}\\|;:'\",<.>/?`~ \t";
     const _test_ascii_keyboard_characters_to_hex = "6162636465666768696a6b6c6d6e6f707172737475767778797a4142434445464748494a4b4c4d4e4f505152535455565758595a3031323334353637383921402324255e262a28295f2b2d3d5b5d7b7d5c7c3b3a27222c3c2e3e2f3f607e2009";
     
     const _test_write_success = function(test_name) {
         if (is_instantiated(_test_result_container)) {
             let el = document.createElement("li");
-            el.innerHTML = test_name;
+            el.innerHTML = "PASSED: " + test_name;
             el.classList.add("green");
             _test_result_container.append(el);
         }
@@ -757,7 +748,7 @@ const App = (function () {
     const _test_write_failure = function(test_name, message) {
         if (is_instantiated(_test_result_container)) {
             let el = document.createElement("li");
-            el.innerHTML = test_name + "<br />" + message;
+            el.innerHTML = "FAILURE: " + test_name + "<br />" + message;
             el.classList.add("red");
             _test_result_container.append(el);
         }
@@ -790,100 +781,32 @@ const App = (function () {
         }
     };
 
-    const _test_suite = async function() {
-        await _test_runner("to_arraybuffer().to_string()", () => {
-            let utf8_arraybuffer = _test_ascii_keyboard_characters.to_arraybuffer();
-            let str = utf8_arraybuffer.to_string();
-            _test_assert_equals(_test_ascii_keyboard_characters.length, utf8_arraybuffer.bytelength);
+    const _test_suite = async function(display_root) {
+        _test_result_container = display_root;
+        await _test_runner("string_to_buffer buffer_to_string", () => {
+            let utf8_arraybuffer = string_to_buffer(_test_ascii_keyboard_characters);
+            let str = buffer_to_string(utf8_arraybuffer);
+            _test_assert_equals(_test_ascii_keyboard_characters.length, utf8_arraybuffer.byteLength);
             _test_assert_equals(_test_ascii_keyboard_characters, str);
         });
 
-        await _test_runner("to_hex_string().to_arraybuffer_from_hex", () => {
-            let buffer1 = _test_ascii_keyboard_characters.to_arraybuffer();
-            let hex_string = utf8_arraybuffer.to_hex_string();
+        await _test_runner("buffer_to_hex hex_to_buffer", () => {
+            let buffer1 = string_to_buffer(_test_ascii_keyboard_characters);
+            let hex_string = buffer_to_hex(buffer1);
             _test_assert_equals(_test_ascii_keyboard_characters_to_hex, hex_string);
-            let buffer2 = hex_string.to_arraybuffer_from_hex();
-            _test_assert_equals(_test_ascii_keyboard_characters.length, buffer2.bytelength);
-            let str = buffer2.to_string();
+            let buffer2 = hex_to_buffer(hex_string);
+            _test_assert_equals(_test_ascii_keyboard_characters.length, buffer2.byteLength);
+            let str = buffer_to_string(buffer2);
             _test_assert_equals(_test_ascii_keyboard_characters, str);
         });
     };
+
+    window.run_tests = _test_suite;
     /* #endregion */
 
     const app_start = function () {
-
-        // SECTIONS ( VIEWS )
-        sections.push(el_view_doc = dom_query("#view_doc"));
-        sections.push(el_view_authenticate = dom_query("#view_authenticate"));
-        sections.push(el_view_savelocal = dom_query("#view_savelocal"));
-        sections.push(el_view_about = dom_query("#view_about"));
-        sections.push(el_view_github = dom_query("#view_github"));
-        
-        // NAVIGATION ELEMENTS
-        nav.push(el_nav_authenticate = dom_query("#nav_authenticate"));
-        nav.push(el_nav_loadlocal = dom_query("#nav_loadlocal"));
-        nav.push(el_nav_savelocal = dom_query("#nav_savelocal"));
-        nav.push(el_nav_save = dom_query("#nav_save"));
-        nav.push(el_nav_cancel = dom_query("#nav_cancel"));
-        nav.push(el_nav_github = dom_query("#nav_github"));
-        nav.push(el_nav_deauthorize = dom_query("#nav_deauthorize"));
-        nav.push(el_nav_about = dom_query("#nav_about"));
-        nav.push(el_nav_close = dom_query("#nav_close"));
-        
-        // INPUT ELEMENTS
-        el_nav_loadlocal_file = dom_query("input", el_nav_loadlocal);
-        el_view_doc_text = dom_query("#view_doc_text");
-        el_view_doc_text.value = "";
-        el_view_authenticate_password = dom_query("#view_authenticate_password");
-        el_view_authenticate_error = dom_query("#view_authenticate_error");
-        el_view_savelocal_filename = dom_query("#view_savelocal_filename");
-        el_view_savelocal_password = dom_query("#view_savelocal_password");
-        el_view_savelocal_error = dom_query("#view_savelocal_error");
-        el_view_github_master_password = dom_query("#view_github_master_password");
-        el_view_github_confirm_password = dom_query("#view_github_confirm_password");
-        el_view_github_username = dom_query("#view_github_username");
-        el_view_github_password = dom_query("#view_github_password");
-        el_view_github_reponame = dom_query("#view_github_reponame");
-        el_view_github_filepath = dom_query("#view_github_filepath");
-        el_popover_message = dom_query("#popover_message");
-        
-        // init
-        // TODO: handler local saved config
-        clear_for_safety();
-        hide(el_popover_message);
-        toggle_nav_view_doc();
-
-        // EVENT HANDLERS
-        add_click_handler(el_nav_savelocal, nav_savelocal_click_handler);
-        add_click_handler(el_nav_github, nav_github_click_handler);
-        add_click_handler(el_nav_about, nav_about_click_handler);
-        add_click_handler(el_nav_save, nav_dynamic_click_handler);
-        add_click_handler(el_nav_cancel, nav_dynamic_click_handler);
-        add_click_handler(el_nav_close, nav_dynamic_click_handler);
-        add_click_handler(el_nav_authenticate, nav_dynamic_click_handler);
-        add_change_handler(el_nav_loadlocal_file, nav_loadlocal_file_change_handler);
-        add_change_handler(el_view_doc_text, view_doc_text_edit_handler);
-        add_keydown_handler(el_view_doc_text, view_doc_text_edit_handler);
-        add_paste_handler(el_view_doc_text, view_doc_text_edit_handler);
-        add_keyup_handler(el_view_authenticate, view_dynamic_default_keyup_handler);
-        add_keyup_handler(el_view_savelocal, view_dynamic_default_keyup_handler);
-        add_keyup_handler(el_view_github, view_dynamic_default_keyup_handler);
-
-        // VALIDATION
-        add_validator(el_view_github_master_password, validate_github_master_password);
-        add_validator(el_view_github_confirm_password, validate_github_master_password);
-        add_validator(el_view_github_username, validate_input_required);
-        add_validator(el_view_github_password, validate_input_required);
-        add_validator(el_view_github_reponame, validate_input_required);
-        add_validator(el_view_github_filepath, validate_input_required);
-
+        push_nav(new MainController());
         interval_id = setInterval(timer_tick_handler, GLOBAL_INTERVAL_MILLISECONDS);
-
-        // const stored_data = get_local(LOCAL_STORAGE_DATA_KEY);
-        // const stored_config = get_local(LOCAL_STORAGE_CONFIG_KEY);
-        // if (stored_data) {
-        //     el_view_doc_text.value = stored_data;
-        // }
     };
 
     if (document.readyState === "complete" || document.readyState === "loaded") {

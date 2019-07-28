@@ -7,6 +7,10 @@
     color:#607B8B;
 }
 
+template {
+    display:none;
+}
+
 .bg_lightseagreen {
     background-color:#20B2AA;
 }
@@ -34,24 +38,22 @@ html, body {
     height:100%;
 }
 
-body {
+/* body {
     display:grid;
     grid-template-rows: minmax(auto, auto) 1fr;
-}
+} */
 
 nav {
-    font-size: 0;
-    display:flex;
-    flex-wrap:wrap;
     background-color:#B0E2FF;
+    margin-bottom:10px;
 }
 
 nav div {
-    display:flex;
+    /* display:flex; */
     display:inline-block;
 }
 
-nav a {
+nav button {
     padding-top:5px;
     padding-bottom:5px;
     padding-left:10px;
@@ -63,38 +65,12 @@ nav a {
     cursor:pointer;
     display:inline-block;
 }
-nav a:hover {
+nav button:hover {
     border-color:#87CEFA;
     background-color:#87CEFA;
 }
-nav label {
+nav button {
     cursor:pointer;
-}
-
-nav input[type="text"] {
-    padding:5px;
-    border:3px solid #607B8B;
-    display:inline-block;
-    height:32px;
-}
-
-nav label > input[type="file"] {
-    display:none;
-}
-
-section {
-    height:100%;
-}
-
-section > div {
-    padding:10px;
-    /* display:inline-block; */
-}
-
-section textarea {
-    padding:10px;
-    height:100%;
-    width:100%;
 }
 
 #popover_message {
@@ -107,12 +83,19 @@ section textarea {
 .form-control {
     display:block;
     margin-bottom:10px;
+    padding-left:10px;
+    padding-right:10px;
 }
 
 .form-control > input {
     width:100%;
     padding:5px;
     border:1px solid #607B8B;
+}
+
+.form-control > input[type=file] {
+    padding:0px;
+    border:none;
 }
 
 .green {
@@ -123,14 +106,18 @@ section textarea {
     color:red;
 }
 
-#view_about p.indent {
+.about_view {
+    padding-left:10px;
+    padding-right:10px;
+}
+.about_view p.indent {
     padding-left:30px;
 }
-#view_about p.indent2 {
+.about_view p.indent2 {
     padding-left:60px;
 }
 
-#view_about label {
+.about_view label {
     display:inline-block;
     font-weight:bold;
 }
