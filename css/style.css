@@ -125,3 +125,13 @@ nav button {
 input.error {
     border-color:red;
 }
+span.error {
+    color:red;
+}
+
+p.editable {
+    min-height:200px;
+    padding-left:10px;
+    padding-right:10px;
+    padding-bottom:10px;
+}

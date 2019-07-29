@@ -12,15 +12,14 @@ const App = (function () {
     const LOG_OFF = 0;
 
     /* application state */
-    let sections = [],
-        nav = [],
-        animation_queue = [],
-        animation_time = 0,
+    let nav = [],               // the navigation stack
+        docs = [],              // the current open documents
+        active_doc_index = 0,
+        animation_queue = [],   // items that are currently animating
+        animation_time = 0,     // animation timestamp, 0 means animation not running
         interval_id,
         edit_countdown = 0,
         edit_dirty = false,
-
-        /* user state */
         log_level = LOG_DEBUG,
         master_password = ""
 
@@ -30,6 +29,15 @@ const App = (function () {
 
     const set_master_password = function(password) {
         master_password = password;
+    };
+
+    const get_active_doc = function() {
+        return docs[active_doc_index];
+    };
+
+    const add_doc = function(name, text) {
+        docs.push({name: name, text: text});
+        active_doc_index = docs.length - 1;
     };
 
     /* #endregion */
@@ -60,13 +68,13 @@ const App = (function () {
         argument[0]: string to be hashed
         returns: promise with arraybuffer as result*/
     const hash_string_sha256 = function(to_be_hashed) {
-        return crypto.subtle.digest("SHA-256", to_be_hashed.to_arraybuffer())
+        return crypto.subtle.digest("SHA-256", string_to_buffer(to_be_hashed))
     };
 
     const encrypt_string_to_base64 = async function(password, plaintext) {
         // const sjcl_parameters = { mode: "gcm", ts: 128, adata: "secpad-auth", iter: 15000 };
         // return sjcl.encrypt(password, text, sjcl_parameters);
-        let input_buffer = plaintext.to_arraybuffer();
+        let input_buffer = string_to_buffer(plaintext);
         return await encrypt_aes_gcm(password, input_buffer)
             .then(output_buffer => StringView.bytesToBase64(new Uint8Array(output_buffer)));
     };
@@ -75,7 +83,7 @@ const App = (function () {
         // return sjcl.decrypt(password, cipher);
         let input_buffer = StringView.base64ToBytes(base64_data);
         return await decrypt_aes_gcm(password, input_buffer.buffer)
-            .then(output_buffer => output_buffer.to_string());
+            .then(output_buffer => buffer_to_string(output_buffer));
     };
 
     const create_encrypt_info = async function(password, iv, salt) {
@@ -88,11 +96,11 @@ const App = (function () {
         const aes_param = { 
             name: "AES-GCM", 
             iv: iv,
-            additionalData: "secpad-auth".to_arraybuffer(), 
+            additionalData: string_to_buffer("secpad-auth"), 
             tagLength: 128,     // tag length in bits
             length: 256         // key length in bits
         };
-        password = password.to_arraybuffer();
+        password = string_to_buffer(password);
         const pbkdf2_param = {
             name: "PBKDF2",
             hash: "SHA-256",
@@ -153,13 +161,14 @@ const App = (function () {
     /* #endregion */
 
     /* #region UTIL */
+    const is_object         = obj => (typeof obj === "object" && obj !== null);
     const is_function       = obj => (typeof obj === "function");
     const is_instantiated   = obj => !(obj === null || typeof obj === "undefined");
-    const is_elementnode    = obj => (typeof obj === "object" && obj.nodeType === document.ELEMENT_NODE);
+    const is_elementnode    = obj => (is_object(obj) && obj.nodeType === document.ELEMENT_NODE);
     const is_string         = obj => (typeof obj === "string");
-    const is_object         = obj => (typeof obj === "object");
+    const is_string_valid   = obj => (is_string(obj) && obj.length > 0);
     const is_boolean        = obj => (typeof obj === "boolean");
-    const is_array          = obj => (typeof obj === "object" && obj.constructor === Array);
+    const is_array          = obj => (is_object(obj) && obj.constructor === Array);
     const swap              = (array, i, j) => { let temp = array[i]; array[i] = array[j]; array[j] = temp; };
     const each              = (array, callback) => { for (let i = 0; i < array.length; i++) callback(array[i], i, array); };
     const remove            = (array, item) => { for(let i = 0; i < array.length; i++) { if (array[i] === item) { swap(array, i, array.length - 1);array.pop();}}};
@@ -173,6 +182,7 @@ const App = (function () {
     const buffer_to_string  = buffer => (new TextDecoder("utf-8", {fatal:true})).decode(buffer);
     const buffer_to_hex     = buffer => Array.prototype.map.call(new Uint8Array(buffer), x=>("00" + x.toString(16)).slice(-2)).join('');
     const hex_to_buffer     = hex => { const buffer = new Uint8Array(hex.length / 2); for (let i = 0, j = 0; i < hex.length; i+=2, j++) buffer[j] = "0123456789abcdef".indexOf(hex[i]) * 16 + "0123456789abcdef".indexOf(hex[i+1]); return buffer.buffer; };
+    const try_focus         = el => is_elementnode(el) ? el.focus() : null;
 
     const center = function(el, center_on) {
         if (!is_instantiated(center_on)) {
@@ -215,7 +225,7 @@ const App = (function () {
     };
     /* #endregion */
 
-    /* #region UI RENDERING, CONTROLS, MODEL BINDING */
+    /* #region UI RENDERING, CONTROLS */
     const render = function(/* variable number of arguments */) {
         // state machine
         let state = 0;
@@ -289,6 +299,7 @@ const App = (function () {
     const push_nav = function(controller) {
         nav.push(controller);
         controller.view(document.body);
+        try_focus(query("input[autofocus]"));
     };
 
     const pop_nav = function() {
@@ -319,28 +330,21 @@ const App = (function () {
     };
     /* #endregion */
 
-    /* #region CONTROLLERS AND VIEWS */
+    /* #region VIEW CONTROLLERS */
 
     const MainController = function() {
-        const model = {};
-        const load_from_file_change_handler = function() {
-
-        };
-        const save_to_file_click_handler = function() {
-
-        };
-        const connect_github_click_handler = function() {
-
-        };
         this.view = function(root) {
             render(root,
                 render("nav", [
-                    nav_button("Load from File", () => push_nav(new LoadLocalFileController())),
-                    nav_button("Save to File", save_to_file_click_handler),
-                    nav_button("Connect Github", connect_github_click_handler),
-                    nav_button("About", () => push_nav(new AboutController())),
+                    nav_button("Load from File", e => push_nav(new LoadLocalFileController())),
+                    nav_button("Save to File", e => push_nav(new SaveToLocalFileController())),
+                    nav_button("Connect Github", e => {}),
+                    nav_button("About", e => push_nav(new AboutController())),
                 ]),
-                render("p", {"contentEditable": true}));
+                render("p", { 
+                    className: "editable", 
+                    "contentEditable": true,
+                    onchange: e => { console.log(e); }}));
         };
     };
 
@@ -356,37 +360,90 @@ const App = (function () {
     };
 
     const LoadLocalFileController = function() {
-        const model = {
-            form_password: form_password({ 
-                placeholder: "Password",
-                onchange: e => { model.password = e.target.value; }})
-        };
-        const authenticate_handler = async function() {
-            if (model.file) {
+        let view_root = null;
+        let password = "";
+        let file = null;
+        let load_handler = function() {
+            clear_validation(view_root);
+            if (file) {
                 const file_reader = new FileReader();
-                file_reader.onload = function() {
+                file_reader.onload = async function() {
                     try {
                         const cipher_text = file_reader.result;
-                        const plain_text = await decrypt_base64_to_string(model.password, cipher_text);
+                        const plain_text = await decrypt_base64_to_string(password, cipher_text);
+                        add_doc(file.name, plain_text);
                         pop_nav();
                     }
                     catch(ex) {
-
+                        set_validation_error("password", view_root, ex);
                     }
                 };
-                file_reader.readAsText(model.file);
+                file_reader.readAsText(file);
+            }
+            else {
+                set_validation_error("file", view_root, "A file is required to continue");
             }
         };
         this.view = function(root) {
+            view_root = root;
             render(root,
                 render("nav",[
-                    nav_button("Authenticate", authenticate_handler),
-                    nav_button("Cancel", pop_nav)
-                ]),
+                    nav_button("Load", load_handler),
+                    nav_button("Cancel", pop_nav)]),
                 form_file({
-                    onchange: e => { model.file = e.target.files[0]; }
-                }),
-                model.form_password);
+                    id: "file",
+                    onchange: e => { file = e.target.files[0]; }}),
+                form_password({
+                    id: "password",
+                    placeholder: "Password",
+                    onchange: e => { password = e.target.value; }}));
+        };
+    };
+
+    const SaveToLocalFileController = function() {
+        let view_root = null;
+        let doc = get_active_doc();
+        let filename = doc.name;
+        let password = "";
+        let save_handler = async function() {
+            clear_validation(view_root);
+            try {
+                if (await validate(view_root)) {
+                    let ciphertext = encrypt_string_to_base64(password, doc.text);
+                    doc.name = filename;
+                    let file = new File([ciphertext], doc.name, { type: "text/plain; charset=utf-8" });
+                    saveAs(file);
+                }
+            }
+            catch (ex) {
+                set_validation_error("confirm_password", view_root, ex);
+            }
+        };
+        this.view = function(root) {
+            view_root = root;
+            render(root,
+                render("nav",[
+                    nav_button("Save", save_handler),
+                    nav_button("Cancel", pop_nav)]),
+                form_input({
+                    id: "filename",
+                    placeholder: "File Name",
+                    value: filename,
+                    onchange: e => { filename = e.target.value; },
+                    validators: [{
+                        validate: validate_input_required,
+                        message: "File Name is required." }]}),
+                form_password({
+                    id: "password",
+                    placeholder: "Password",
+                    autofocus: true,
+                    onchange: e => { password = e.target.value; }}),
+                form_password({
+                    id: "confirm_password",
+                    placeholder: "Confirm Password",
+                    validators: [{
+                        validate: validate_confirm_password,
+                        message: "Passwords do not match!" }]}));
         };
     };
 
@@ -528,70 +585,6 @@ const App = (function () {
     };
     /* #endregion */
 
-    /* #region SAVE LOCAL ( EXPORT TO FILE ) */
-    const nav_savelocal_click_handler = function () {
-        toggle_nav(el_nav_save, el_nav_cancel);
-        toggle_section(el_view_savelocal);
-        el_nav_save.secpad_click_handler = nav_savelocal_save_handler;
-        el_nav_cancel.secpad_click_handler = nav_savelocal_cancel_handler;
-        el_view_savelocal.secpad_default_enter_press_handler = nav_savelocal_save_handler;
-        el_view_savelocal.secpad_default_esc_press_handler = nav_savelocal_cancel_handler;
-        el_view_savelocal_filename.focus();
-    };
-
-    const nav_savelocal_save_handler = function() {
-        return new Promise(function(resolve, reject) {
-            try {
-                let filename = el_view_savelocal_filename.value;
-                let password = el_view_savelocal_password.value;
-                let text = el_view_doc_text.value;
-                if (filename.length === 0) {
-                    filename = "secpad.json";
-                }
-                text = encrypt(password, text);
-                const file = new File([text], filename, { type: "text/plain; charset=utf=8" });
-                saveAs(file);
-                toggle_nav_view_doc();
-                resolve();
-            } catch (ex) {
-                el_view_savelocal_error.innerHTML = ex;
-                reject(ex);
-            }
-        });
-    };
-
-    const nav_savelocal_cancel_handler = function() {
-        return new Promise(function(resolve, reject) {
-            toggle_nav_view_doc();
-            resolve();
-        });
-    };
-    /* #endregion */
-
-    /* #region LOAD LOCAL ( LOAD FROM FILE ) */
-
-    const nav_loadlocal_auth_handler = function() {
-        return new Promise(function(resolve, reject) {
-            try {
-                const text = decrypt(el_view_authenticate_password.value, loaded_cipher_text);
-                el_view_doc_text.value = text;
-                toggle_nav_view_doc();
-                resolve();
-            } catch(ex) {
-                el_view_authenticate_error.innerHTML = ex;
-                reject(ex);
-            }
-        });
-    };
-
-    const nav_loadlocal_cancel_handler = function() {
-        return new Promise(function(resolve, reject) {
-            toggle_nav_view_doc();
-            resolve();
-        });
-    };
-    /* #endregion */
-
     /* #region GITHUB */
     const nav_github_click_handler = function () {
         toggle_nav(el_nav_save, el_nav_close);
@@ -679,6 +672,16 @@ const App = (function () {
     /* #endregion */
 
     /* #region VALIDATION */
+    const set_validation_error = function(id, view_root, message) {
+        query("#" + id).classList.add("error");
+        query("#" + id + " + span", view_root).innerHTML = message;
+    };
+
+    const clear_validation = function(root) {
+        each(query_all("input.error", root), el => el.classList.remove("error"));
+        each(query_all("span.error", root), el => el.innerHTML = "");
+    };
+
     const validate = function (el_container) {
         return new Promise((resolve, reject) => {
             let is_valid = true;
@@ -686,23 +689,23 @@ const App = (function () {
                 let el_is_valid = true;
                 if (el.validators && el.validators.length > 0) {
                     each(el.validators, validator => {
-                        if (!validator.call(el)) {
+                        if (!validator.validate.call(el)) {
                             el_is_valid = false;
+                            set_validation_error(el.id, el.parentNode, validator.message);
                         }
                     });
                 }
                 if (el_is_valid) {
-                    el.classList.remove("error");
+                    clear_validation(el.parentNode);
                 }
                 else {
-                    el.classList.add("error");
                     is_valid = false;
                 }
             });
             if (is_valid) {
-                resolve();
+                resolve(true);
             } else {
-                reject("Validation Failed");
+                resolve(false);
             }
         });
     };
@@ -722,8 +725,10 @@ const App = (function () {
         return is_valid;
     };
 
-    const validate_github_master_password = function() {
-        if (el_view_github_master_password.value === el_view_github_confirm_password.value) {
+    const validate_confirm_password = function() {
+        let el_password = query("#password");
+        let el_confirm = query("#confirm_password");
+        if (el_password.value === el_confirm.value) {
             return true;
         } else {
             return false;
@@ -801,10 +806,11 @@ const App = (function () {
         });
     };
 
-    window.run_tests = _test_suite;
+    //window.run_tests = _test_suite;
     /* #endregion */
 
     const app_start = function () {
+        add_doc("secpad.json", "");
         push_nav(new MainController());
         interval_id = setInterval(timer_tick_handler, GLOBAL_INTERVAL_MILLISECONDS);
     };
