@@ -4,7 +4,6 @@ const App = (function () {
     /* #region GLOBAL STATE */
     const LOCAL_STORAGE_DATA_KEY = "secpad_data";
     const LOCAL_STORAGE_CONFIG_KEY = "secpad_config";
-    const GITHUB_REPO_URL = "https://api.github.com/repos";
     const EDIT_COUNTDOWN_TO_SAVE = 2;
     const GLOBAL_INTERVAL_MILLISECONDS = 1000;
     const LOG_DEBUG = 10;
@@ -332,14 +331,49 @@ const App = (function () {
 
     /* #region MODEL */
     const DocModel = function(name, text) {
-        this.name = name;
-        this.text = text;
+        let _name = name;
+        let _text = text;
+
+        this.set_name = name => _name = name;
+        this.get_name = () => _name;
+        this.set_text = text => _text = text;
+        this.get_text = () => _text;
     };
-    DocModel.prototype.set_text = function(text) {
-        this.text = text;
-    };
-    DocModel.prototype.get_text = function() {
-        return this.text;
+
+    const GithubModel = function() {
+        const GITHUB_REPO_URL = "https://api.github.com/repos";
+        const call = function(url, method, username, password) {
+            let request = new Request(url);
+            let headers = new Headers();
+            headers.append("Accept", "application/vnd.github.v3+json");
+            headers.append("Authorization", "Basic " + btoa(username + ":" + password));
+            let config = {
+                method: method.toUpperCase(),
+                headers: headers,
+                mode: "cors"
+            };
+            return fetch(request, config)
+                .catch(error => { log("Call to Github failed with error: " + error); });
+        };
+
+        this.authenticate = function(username, password, repo) {
+            const url = GITHUB_REPO_URL + "/" + username + "/" + repo;
+            return call(url, "GET", username, password)
+                .then(response => { return response.json(); })
+                .then(data => {
+                    return new Promise((resolve, reject) => {
+                    try {
+                        if (data.id && data.name.toLowerCase() === repo.toLowerCase() && data.permissions.push === true) {
+                            log("GitHub Validated");
+                            resolve(true);
+                        } else {
+                            resolve(false);
+                        }
+                    } catch {
+                        resolve(false);
+                    }}); 
+                });
+        };
     };
     /* #endregion */
 
@@ -415,7 +449,7 @@ const App = (function () {
 
     const SaveToLocalFileController = function() {
         let view_root = null;
-        let filename = get_active_doc().name;
+        let filename = get_active_doc().get_name();
         let password = "";
         let save_handler = async function() {
             clear_validation(view_root);
@@ -423,8 +457,8 @@ const App = (function () {
                 if (await validate(view_root)) {
                     let doc = get_active_doc();
                     let ciphertext = await encrypt_string_to_base64(password, doc.get_text());
-                    doc.name = filename;
-                    let file = new File([ciphertext], doc.name, { type: "text/plain; charset=utf-8" });
+                    doc.set_name(filename);
+                    let file = new File([ciphertext], doc.get_name(), { type: "text/plain; charset=utf-8" });
                     saveAs(file);
                     pop_nav();
                 }
@@ -641,15 +675,6 @@ const App = (function () {
     /* #endregion */
 
     /* #region GITHUB */
-    const nav_github_click_handler = function () {
-        toggle_nav(el_nav_save, el_nav_close);
-        toggle_section(el_view_github);
-        el_view_github_master_password.focus();
-        el_nav_save.secpad_click_handler = nav_github_save_handler;
-        el_nav_close.secpad_click_handler = nav_github_close_handler;
-        el_view_github.secpad_default_enter_press_handler = nav_github_save_handler;
-        el_view_github.secpad_default_esc_press_handler = nav_github_close_handler;
-    };
 
     const nav_github_save_handler = function() {
         return validate(el_view_github)
@@ -673,50 +698,6 @@ const App = (function () {
                         reject("Github Validation Failed");
                     }
                 });
-            });
-    };
-
-    const nav_github_close_handler = function() {
-        return new Promise((resolve, reject) => {
-            try {
-                toggle_nav_view_doc();
-                resolve();
-            } catch(error) {
-                log("Github close handler error: " + error);
-            }
-        });
-    };
-
-    const call_github = function(url, method, username, password) {
-        let request = new Request(url);
-        let headers = new Headers();
-        headers.append("Accept", "application/vnd.github.v3+json");
-        headers.append("Authorization", "Basic " + btoa(username + ":" + password));
-        let config = {
-            method: method.toUpperCase(),
-            headers: headers,
-            mode: "cors"
-        };
-        return fetch(request, config)
-            .catch(error => { log("Call to Github failed with error: " + error); });
-    };
-
-    const authenticate_github = function(username, password, repo) {
-        const url = GITHUB_REPO_URL + "/" + username + "/" + repo;
-        return call_github(url, "GET", username, password)
-            .then(response => { return response.json(); })
-            .then(data => {
-                return new Promise((resolve, reject) => {
-                try {
-                    if (data.id && data.name.toLowerCase() === repo.toLowerCase() && data.permissions.push === true) {
-                        log("GitHub Validated");
-                        resolve(true);
-                    } else {
-                        resolve(false);
-                    }
-                } catch {
-                    resolve(false);
-                }}); 
             });
     };
 
