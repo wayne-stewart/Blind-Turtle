@@ -36,7 +36,7 @@ const App = (function () {
     };
 
     const add_doc = function(name, text) {
-        docs.push({name: name, text: text});
+        docs.push(new DocModel(name, text));
         active_doc_index = docs.length - 1;
     };
 
@@ -330,6 +330,19 @@ const App = (function () {
     };
     /* #endregion */
 
+    /* #region MODEL */
+    const DocModel = function(name, text) {
+        this.name = name;
+        this.text = text;
+    };
+    DocModel.prototype.set_text = function(text) {
+        this.text = text;
+    };
+    DocModel.prototype.get_text = function() {
+        return this.text;
+    };
+    /* #endregion */
+
     /* #region VIEW CONTROLLERS */
 
     const MainController = function() {
@@ -338,13 +351,13 @@ const App = (function () {
                 render("nav", [
                     nav_button("Load from File", e => push_nav(new LoadLocalFileController())),
                     nav_button("Save to File", e => push_nav(new SaveToLocalFileController())),
-                    nav_button("Connect Github", e => {}),
+                    nav_button("Connect Github", e => push_nav(new ConnectGithubController())),
                     nav_button("About", e => push_nav(new AboutController())),
                 ]),
-                render("p", { 
+                render("p", get_active_doc().get_text(), { 
                     className: "editable", 
                     "contentEditable": true,
-                    onchange: e => { console.log(e); }}));
+                    onkeyup: e => { get_active_doc().set_text(e.target.innerHTML); }}));
         };
     };
 
@@ -402,17 +415,18 @@ const App = (function () {
 
     const SaveToLocalFileController = function() {
         let view_root = null;
-        let doc = get_active_doc();
-        let filename = doc.name;
+        let filename = get_active_doc().name;
         let password = "";
         let save_handler = async function() {
             clear_validation(view_root);
             try {
                 if (await validate(view_root)) {
-                    let ciphertext = encrypt_string_to_base64(password, doc.text);
+                    let doc = get_active_doc();
+                    let ciphertext = await encrypt_string_to_base64(password, doc.get_text());
                     doc.name = filename;
                     let file = new File([ciphertext], doc.name, { type: "text/plain; charset=utf-8" });
                     saveAs(file);
+                    pop_nav();
                 }
             }
             catch (ex) {
@@ -430,9 +444,7 @@ const App = (function () {
                     placeholder: "File Name",
                     value: filename,
                     onchange: e => { filename = e.target.value; },
-                    validators: [{
-                        validate: validate_input_required,
-                        message: "File Name is required." }]}),
+                    validators: [new RequiredValidator("File Name is required.")]}),
                 form_password({
                     id: "password",
                     placeholder: "Password",
@@ -441,9 +453,52 @@ const App = (function () {
                 form_password({
                     id: "confirm_password",
                     placeholder: "Confirm Password",
-                    validators: [{
-                        validate: validate_confirm_password,
-                        message: "Passwords do not match!" }]}));
+                    validators: [new ConfirmPasswordValidator("Passwords do not match!")]}));
+        };
+    };
+
+    const ConnectGithubController = function() {
+        let view_root;
+        let master_password = "";
+        let github_username = "";
+        let github_password = "";
+        let github_reponame = "";
+        let authenticate_handler = async function() {
+            clear_validation(view_root);
+            if (await validate(view_root)) {
+
+            }
+        };
+        this.view = function(root) {
+            view_root = root;
+            render(root,
+                render("nav", [
+                    nav_button("Authenticate", authenticate_handler),
+                    nav_button("Cancel", pop_nav)]),
+                form_password({
+                    id: "password",
+                    placeholder: "Master Password",
+                    autofocus: true,
+                    onchange: e => { master_password = e.target.value; }}),
+                form_password({
+                    id: "confirm_password",
+                    placeholder: "Confirm Master Password",
+                    validators: [new ConfirmPasswordValidator("Passwords do not match!")]}),
+                form_input({
+                    id: "username",
+                    placeholder: "Github Username",
+                    onchange: e => { github_username = e.target.value; },
+                    validators: [new RequiredValidator("Github Username is required.")]}),
+                form_password({
+                    id: "github_password",
+                    placeholder: "Github Password",
+                    onchange: e => { github_password = e.target.value; },
+                    validators: [new RequiredValidator("Github Password is required.")]}),
+                form_input({
+                    id: "github_reponame",
+                    placeholder: "Github Repo Name",
+                    onchange: e => { github_reponame = e.target.value; },
+                    validators: [new RequiredValidator("Github Repo Name is required.")]}));
         };
     };
 
@@ -720,19 +775,22 @@ const App = (function () {
     };
 
     /* the 'this' parameter is the element to validate */
-    const validate_input_required = function() {
-        let is_valid = this.value.length > 0;
-        return is_valid;
+    const RequiredValidator = function(message) {
+        this.message = message;
+        this.validate = function() { return this.value.length > 0; };
     };
 
-    const validate_confirm_password = function() {
-        let el_password = query("#password");
-        let el_confirm = query("#confirm_password");
-        if (el_password.value === el_confirm.value) {
-            return true;
-        } else {
-            return false;
-        }
+    const ConfirmPasswordValidator = function(message) {
+        this.message = message;
+        this.validate = function() {
+            let el_password = query("#password");
+            let el_confirm = query("#confirm_password");
+            if (el_password.value === el_confirm.value) {
+                return true;
+            } else {
+                return false;
+            }
+        };
     };
     /* #endregion */
 
