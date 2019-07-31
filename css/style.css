@@ -131,6 +131,10 @@ span.error {
     color:red;
 }
 
+p.error {
+    color:red;
+}
+
 p.editable {
     min-height:200px;
     padding-left:10px;

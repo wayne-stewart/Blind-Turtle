@@ -6,9 +6,6 @@ const App = (function () {
     const LOCAL_STORAGE_CONFIG_KEY = "secpad_config";
     const EDIT_COUNTDOWN_TO_SAVE = 2;
     const GLOBAL_INTERVAL_MILLISECONDS = 1000;
-    const LOG_DEBUG = 10;
-    const LOG_ERROR = 1;
-    const LOG_OFF = 0;
 
     /* application state */
     let nav = [],               // the navigation stack
@@ -20,7 +17,6 @@ const App = (function () {
         control_id = 100,
         edit_countdown = 0,
         edit_dirty = false,
-        log_level = LOG_DEBUG,
         master_password = ""
 
     const create_control_id = function() {
@@ -376,7 +372,6 @@ const App = (function () {
                     return new Promise((resolve, reject) => {
                     try {
                         if (data.id && data.name.toLowerCase() === repo.toLowerCase() && data.permissions.push === true) {
-                            log("GitHub Validated");
                             resolve(true);
                         } else {
                             resolve(false);
@@ -507,10 +502,23 @@ const App = (function () {
         let github_username = "";
         let github_password = "";
         let github_reponame = "";
+
         let authenticate_handler = async function() {
             clear_validation(view_root);
             if (await validate(view_root)) {
-
+                let model = new GithubModel();
+                if (await model.authenticate(github_username, github_password, github_reponame)) {
+                    set_master_password(master_password);
+                    let info = {
+                        type: "github",
+                        username: github_username,
+                        password: github_password,
+                        reponame: github_reponame
+                    };
+                    set_local(LOCAL_STORAGE_CONFIG_KEY, info);
+                } else {
+                    query("p.error", view_root).innerHTML = "Github Validation Failed";
+                }
             }
         };
         this.view = function(root) {
@@ -540,7 +548,8 @@ const App = (function () {
                 form_input({
                     placeholder: "Github Repo Name",
                     onchange: e => { github_reponame = e.target.value; },
-                    validators: [new RequiredValidator("Github Repo Name is required.")]}));
+                    validators: [new RequiredValidator("Github Repo Name is required.")]}),
+                render("p", { className: "textblock error" }));
         };
     };
 
@@ -682,39 +691,6 @@ const App = (function () {
     };
     /* #endregion */
 
-    /* #region GITHUB */
-
-    const nav_github_save_handler = function() {
-        return validate(el_view_github)
-            .then(() => authenticate_github(
-                el_view_github_username.value, 
-                el_view_github_password.value, 
-                el_view_github_reponame.value))
-            .then(success => {
-                return new Promise((resolve, reject) => {
-                    if (success) {
-                        set_master_password(el_view_github_master_password.value);
-                        let info = {
-                            type: "github",
-                            username: el_view_github_username.value,
-                            password: el_view_github_password.value,
-                            reponame: el_view_github_reponame.value,
-                            filepath: el_view_github_filepath.value
-                        };
-                        set_local(LOCAL_STORAGE_CONFIG_KEY, info);
-                    } else {
-                        reject("Github Validation Failed");
-                    }
-                });
-            });
-    };
-
-    const commit_file_to_github = function() {
-        const url = GITHUB_REPO_URL + "/" + username
-    };
-
-    /* #endregion */
-
     /* #region VALIDATION */
     const set_validation_error = function(id, view_root, message) {
         query("#" + id).classList.add("error");
@@ -724,6 +700,7 @@ const App = (function () {
     const clear_validation = function(root) {
         each(query_all("input.error", root), el => el.classList.remove("error"));
         each(query_all("span.error", root), el => el.innerHTML = "");
+        each(query_all("p.error", root), el => el.innerHTML = "");
     };
 
     const validate = function (el_container) {
