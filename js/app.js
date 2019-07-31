@@ -17,10 +17,15 @@ const App = (function () {
         animation_queue = [],   // items that are currently animating
         animation_time = 0,     // animation timestamp, 0 means animation not running
         interval_id,
+        control_id = 100,
         edit_countdown = 0,
         edit_dirty = false,
         log_level = LOG_DEBUG,
         master_password = ""
+
+    const create_control_id = function() {
+        return "_" + (control_id++).toString();
+    };
 
     const get_master_password = function() {
         return master_password;
@@ -311,7 +316,14 @@ const App = (function () {
         return render("button", { title: title, onclick: click_handler }, title);
     };
 
+    const nav_spacer = function() {
+        return render("div", { className: "nav_spacer" }, "&nbsp;");
+    };
+
     const form_input = function(options) {
+        if (!is_instantiated(options.id)) {
+            options.id = create_control_id();
+        }
         return render("div", { className: "form-control" }, [
             render("input", options),
             render("span", { className: "error" })
@@ -388,6 +400,7 @@ const App = (function () {
                     nav_button("Connect Github", e => push_nav(new ConnectGithubController())),
                     nav_button("About", e => push_nav(new AboutController())),
                 ]),
+                nav_spacer(),
                 render("p", get_active_doc().get_text(), { 
                     className: "editable", 
                     "contentEditable": true,
@@ -396,12 +409,12 @@ const App = (function () {
     };
 
     const AboutController = function() {
-        const model = {};
         this.view = function(root) {
             render(root, 
                 render("nav", [
                     nav_button("Close", pop_nav)
                 ]),
+                nav_spacer(),
                 render("div", { className: "about_view" }, template("view_about")));
         };
     };
@@ -410,9 +423,9 @@ const App = (function () {
         let view_root = null;
         let password = "";
         let file = null;
-        let load_handler = function() {
+        let load_handler = async function() {
             clear_validation(view_root);
-            if (file) {
+            if (await validate(view_root)) {
                 const file_reader = new FileReader();
                 file_reader.onload = async function() {
                     try {
@@ -427,9 +440,6 @@ const App = (function () {
                 };
                 file_reader.readAsText(file);
             }
-            else {
-                set_validation_error("file", view_root, "A file is required to continue");
-            }
         };
         this.view = function(root) {
             view_root = root;
@@ -437,11 +447,11 @@ const App = (function () {
                 render("nav",[
                     nav_button("Load", load_handler),
                     nav_button("Cancel", pop_nav)]),
+                nav_spacer(),
                 form_file({
-                    id: "file",
-                    onchange: e => { file = e.target.files[0]; }}),
+                    onchange: e => { file = e.target.files[0]; },
+                    validators:[new RequiredValidator("A file is required to continue.")]}),
                 form_password({
-                    id: "password",
                     placeholder: "Password",
                     onchange: e => { password = e.target.value; }}));
         };
@@ -473,8 +483,8 @@ const App = (function () {
                 render("nav",[
                     nav_button("Save", save_handler),
                     nav_button("Cancel", pop_nav)]),
+                nav_spacer(),
                 form_input({
-                    id: "filename",
                     placeholder: "File Name",
                     value: filename,
                     onchange: e => { filename = e.target.value; },
@@ -485,14 +495,14 @@ const App = (function () {
                     autofocus: true,
                     onchange: e => { password = e.target.value; }}),
                 form_password({
-                    id: "confirm_password",
                     placeholder: "Confirm Password",
-                    validators: [new ConfirmPasswordValidator("Passwords do not match!")]}));
+                    validators: [new ConfirmIdenticalValuesValidator("#password", "Passwords do not match!")]}),
+                render("p", { className: "textblock" }, template("view_savelocal_text")));
         };
     };
 
     const ConnectGithubController = function() {
-        let view_root;
+        let view_root = null;
         let master_password = "";
         let github_username = "";
         let github_password = "";
@@ -509,27 +519,25 @@ const App = (function () {
                 render("nav", [
                     nav_button("Authenticate", authenticate_handler),
                     nav_button("Cancel", pop_nav)]),
+                nav_spacer(),
                 form_password({
                     id: "password",
                     placeholder: "Master Password",
                     autofocus: true,
                     onchange: e => { master_password = e.target.value; }}),
                 form_password({
-                    id: "confirm_password",
                     placeholder: "Confirm Master Password",
-                    validators: [new ConfirmPasswordValidator("Passwords do not match!")]}),
+                    validators: [new ConfirmIdenticalValuesValidator("#password", "Passwords do not match!")]}),
+                render("p", { className: "textblock" }, template("view_connect_github_text")),
                 form_input({
-                    id: "username",
                     placeholder: "Github Username",
                     onchange: e => { github_username = e.target.value; },
                     validators: [new RequiredValidator("Github Username is required.")]}),
                 form_password({
-                    id: "github_password",
                     placeholder: "Github Password",
                     onchange: e => { github_password = e.target.value; },
                     validators: [new RequiredValidator("Github Password is required.")]}),
                 form_input({
-                    id: "github_reponame",
                     placeholder: "Github Repo Name",
                     onchange: e => { github_reponame = e.target.value; },
                     validators: [new RequiredValidator("Github Repo Name is required.")]}));
@@ -761,12 +769,11 @@ const App = (function () {
         this.validate = function() { return this.value.length > 0; };
     };
 
-    const ConfirmPasswordValidator = function(message) {
+    const ConfirmIdenticalValuesValidator = function(selector, message) {
         this.message = message;
         this.validate = function() {
-            let el_password = query("#password");
-            let el_confirm = query("#confirm_password");
-            if (el_password.value === el_confirm.value) {
+            let el = query(selector);
+            if (el.value === this.value) {
                 return true;
             } else {
                 return false;

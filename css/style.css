@@ -45,12 +45,14 @@ html, body {
 
 nav {
     background-color:#B0E2FF;
-    margin-bottom:10px;
+    width:100%;
+    position:fixed;
 }
 
-nav div {
-    /* display:flex; */
-    display:inline-block;
+div.nav_spacer {
+    padding-top:5px;
+    padding-bottom:5px;
+    margin-bottom:16px;
 }
 
 nav button {
@@ -131,6 +133,12 @@ span.error {
 
 p.editable {
     min-height:200px;
+    padding-left:10px;
+    padding-right:10px;
+    padding-bottom:10px;
+}
+
+p.textblock {
     padding-left:10px;
     padding-right:10px;
     padding-bottom:10px;
