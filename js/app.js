@@ -2,8 +2,7 @@ const App = (function () {
     "use strict"
 
     /* #region GLOBAL STATE */
-    const LOCAL_STORAGE_DATA_KEY = "secpad_data";
-    const LOCAL_STORAGE_CONFIG_KEY = "secpad_config";
+    const LOCAL_STORAGE_CONFIG_KEY = "__secpad_config_";
     const EDIT_COUNTDOWN_TO_SAVE = 2;
     const GLOBAL_INTERVAL_MILLISECONDS = 1000;
 
@@ -22,24 +21,6 @@ const App = (function () {
     const create_control_id = function() {
         return "_" + (control_id++).toString();
     };
-
-    const get_master_password = function() {
-        return master_password;
-    };
-
-    const set_master_password = function(password) {
-        master_password = password;
-    };
-
-    const get_active_doc = function() {
-        return docs[active_doc_index];
-    };
-
-    const add_doc = function(name, text) {
-        docs.push(new DocModel(name, text));
-        active_doc_index = docs.length - 1;
-    };
-
     /* #endregion */
 
     /* #region LOGGING */
@@ -208,21 +189,6 @@ const App = (function () {
             el.style.display = "none";
         }
     };
-
-    const get_local = async function (key) {
-        const password = get_master_password();
-        const encrypted_value = localStorage.getItem(key);
-        const json = await decrypt_base64_to_string(password, encrypted_value);
-        const obj = JSON.parse(json);
-        return obj;
-    };
-
-    const set_local = async function (key, value) {
-        const password = get_master_password();
-        const json = JSON.stringify(value);
-        const encrypted_value = await encrypt_string_to_base64(password, json);
-        localStorage.setItem(key, encrypted_value);
-    };
     /* #endregion */
 
     /* #region UI RENDERING, CONTROLS */
@@ -304,7 +270,10 @@ const App = (function () {
 
     const pop_nav = function() {
         let popped = nav.pop();
-        last(nav).view(document.body);
+        let x = last(nav);
+        if (is_instantiated(x)) {
+            x.view(document.body);
+        }
         return popped;
     };
 
@@ -338,6 +307,55 @@ const App = (function () {
     /* #endregion */
 
     /* #region MODEL */
+    const get_local = async function (key) {
+
+    };
+
+    const set_local = async function (key, value) {
+        const password = get_master_password();
+        const json = JSON.stringify(value);
+        const encrypted_value = await encrypt_string_to_base64(password, json);
+        localStorage.setItem(key, encrypted_value);
+    };
+
+    const local_config_exists = function() {
+        for(let i = 0; i < localStorage.length; i++) {
+            if (localStorage.key(i) === LOCAL_STORAGE_CONFIG_KEY) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    const save_config = async function(config) {
+
+    };
+
+    const load_config = async function() {
+        const password = get_master_password();
+        const encrypted_value = localStorage.getItem(key);
+        const json = await decrypt_base64_to_string(password, encrypted_value);
+        const obj = JSON.parse(json);
+        return obj;
+    };
+
+    const get_master_password = function() {
+        return master_password;
+    };
+
+    const set_master_password = function(password) {
+        master_password = password;
+    };
+    
+    const get_active_doc = function() {
+        return docs[active_doc_index];
+    };
+
+    const add_doc = function(name, text) {
+        docs.push(new DocModel(name, text));
+        active_doc_index = docs.length - 1;
+    };
+
     const DocModel = function(name, text) {
         let _name = name;
         let _text = text;
@@ -386,13 +404,39 @@ const App = (function () {
 
     /* #region VIEW CONTROLLERS */
 
+    const InitController = function() {
+        this.view = function(root) {
+            render(root, render("nav", [
+                nav_button("Connect Github", e => push_nav(new ConnectGithubController()))
+            ]));
+        };
+    };
+
+    const AuthenticateController = function() {
+        this.view = function(root) {
+            render(root, render("nav", [
+                nav_button("Authenticate", () => {}),
+                nav_button("Cancel", pop_nav)
+            ]));
+        };
+    };
+
+    const ConfigureMasterPassword = function () {
+        this.view = function(root) {
+            render(root, render("nav", [
+                nav_button("Save", () => {}),
+                nav_button("Cancel", pop_nav)
+            ]));
+        };
+    };
+
     const MainController = function() {
         this.view = function(root) {
             render(root,
                 render("nav", [
                     nav_button("Load from File", e => push_nav(new LoadLocalFileController())),
                     nav_button("Save to File", e => push_nav(new SaveToLocalFileController())),
-                    nav_button("Connect Github", e => push_nav(new ConnectGithubController())),
+                    nav_button("Configure Github", e => push_nav(new ConnectGithubController())),
                     nav_button("About", e => push_nav(new AboutController())),
                 ]),
                 nav_spacer(),
@@ -502,7 +546,6 @@ const App = (function () {
         let github_username = "";
         let github_password = "";
         let github_reponame = "";
-
         let authenticate_handler = async function() {
             clear_validation(view_root);
             if (await validate(view_root)) {
@@ -833,8 +876,15 @@ const App = (function () {
     /* #endregion */
 
     const app_start = function () {
+
+        if (local_config_exists()) {
+            push_nav(new AuthenticateController());
+        } else {
+            push_nav(new InitController());
+        }
+
         add_doc("secpad.json", "");
-        push_nav(new MainController());
+        //push_nav(new MainController());
         interval_id = setInterval(timer_tick_handler, GLOBAL_INTERVAL_MILLISECONDS);
     };
 
