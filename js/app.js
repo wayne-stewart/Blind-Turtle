@@ -2,7 +2,8 @@ const App = (function () {
     "use strict"
 
     /* #region GLOBAL STATE */
-    const LOCAL_STORAGE_CONFIG_KEY = "__secpad_config_";
+        const GITHUB_REPO_URL = "https://api.github.com/repos";
+        const LOCAL_STORAGE_CONFIG_KEY = "__secpad_config_";
     const EDIT_COUNTDOWN_TO_SAVE = 2;
     const GLOBAL_INTERVAL_MILLISECONDS = 1000;
 
@@ -277,6 +278,10 @@ const App = (function () {
         return popped;
     };
 
+    const pop_nav_all = function() {
+        while(nav.length > 0) pop_nav();
+    };
+
     const nav_button = function(title, click_handler) {
         return render("button", { title: title, onclick: click_handler }, title);
     };
@@ -307,18 +312,7 @@ const App = (function () {
     /* #endregion */
 
     /* #region MODEL */
-    const get_local = async function (key) {
-
-    };
-
-    const set_local = async function (key, value) {
-        const password = get_master_password();
-        const json = JSON.stringify(value);
-        const encrypted_value = await encrypt_string_to_base64(password, json);
-        localStorage.setItem(key, encrypted_value);
-    };
-
-    const local_config_exists = function() {
+    const config_exists = function() {
         for(let i = 0; i < localStorage.length; i++) {
             if (localStorage.key(i) === LOCAL_STORAGE_CONFIG_KEY) {
                 return true;
@@ -328,15 +322,22 @@ const App = (function () {
     };
 
     const save_config = async function(config) {
-
+        const password = get_master_password();
+        const stringified = JSON.stringify(config);
+        const encrypted_value = await encrypt_string_to_base64(password, stringified);
+        localStorage.setItem(LOCAL_STORAGE_CONFIG_KEY, encrypted_value);
     };
 
     const load_config = async function() {
-        const password = get_master_password();
-        const encrypted_value = localStorage.getItem(key);
-        const json = await decrypt_base64_to_string(password, encrypted_value);
-        const obj = JSON.parse(json);
-        return obj;
+        try {
+            const password = get_master_password();
+            const encrypted_value = localStorage.getItem(LOCAL_STORAGE_CONFIG_KEY);
+            const decrypted_value = await decrypt_base64_to_string(password, encrypted_value);
+            return JSON.parse(decrypted_value);
+        }
+        catch(ex) {
+            return false;
+        }
     };
 
     const get_master_password = function() {
@@ -366,39 +367,36 @@ const App = (function () {
         this.get_text = () => _text;
     };
 
-    const GithubModel = function() {
-        const GITHUB_REPO_URL = "https://api.github.com/repos";
-        const call = function(url, method, username, password) {
-            let request = new Request(url);
-            let headers = new Headers();
-            headers.append("Accept", "application/vnd.github.v3+json");
-            headers.append("Authorization", "Basic " + btoa(username + ":" + password));
-            let config = {
-                method: method.toUpperCase(),
-                headers: headers,
-                mode: "cors"
-            };
-            return fetch(request, config)
-                .catch(error => { log("Call to Github failed with error: " + error); });
+    const github_call = function(url, method, username, password) {
+        let request = new Request(url);
+        let headers = new Headers();
+        headers.append("Accept", "application/vnd.github.v3+json");
+        headers.append("Authorization", "Basic " + btoa(username + ":" + password));
+        let config = {
+            method: method.toUpperCase(),
+            headers: headers,
+            mode: "cors"
         };
+        return fetch(request, config)
+            .catch(error => { log("Call to Github failed with error: " + error); });
+    };
 
-        this.authenticate = function(username, password, repo) {
-            const url = GITHUB_REPO_URL + "/" + username + "/" + repo;
-            return call(url, "GET", username, password)
-                .then(response => { return response.json(); })
-                .then(data => {
-                    return new Promise((resolve, reject) => {
-                    try {
-                        if (data.id && data.name.toLowerCase() === repo.toLowerCase() && data.permissions.push === true) {
-                            resolve(true);
-                        } else {
-                            resolve(false);
-                        }
-                    } catch {
+    const github_authenticate = function(username, password, repo) {
+        const url = GITHUB_REPO_URL + "/" + username + "/" + repo;
+        return github_call(url, "GET", username, password)
+            .then(response => { return response.json(); })
+            .then(data => {
+                return new Promise((resolve, reject) => {
+                try {
+                    if (data.id && data.name.toLowerCase() === repo.toLowerCase() && data.permissions.push === true) {
+                        resolve(true);
+                    } else {
                         resolve(false);
-                    }}); 
-                });
-        };
+                    }
+                } catch {
+                    resolve(false);
+                }}); 
+            });
     };
     /* #endregion */
 
@@ -407,17 +405,37 @@ const App = (function () {
     const InitController = function() {
         this.view = function(root) {
             render(root, render("nav", [
-                nav_button("Connect Github", e => push_nav(new ConnectGithubController()))
+                nav_button("Connect Github", e => push_nav(new ConnectGithubController())),
+                nav_button("About", e => push_nav(new AboutController()))
             ]));
         };
     };
 
     const AuthenticateController = function() {
+        let view_root = null;
+        let password = "";
+        const authenticate_handler = async function() {
+            set_master_password(password);
+            let config = await load_config();
+            if (config) {
+                pop_nav_all();
+                push_nav(new MainController());
+            } else {
+                query("p.error", view_root).innerHTML = "Authentication Failed";
+            }
+        };
         this.view = function(root) {
+            view_root = root;
             render(root, render("nav", [
-                nav_button("Authenticate", () => {}),
-                nav_button("Cancel", pop_nav)
-            ]));
+                nav_button("Authenticate", authenticate_handler)
+            ]),
+            nav_spacer(),
+            form_password({
+                id: "password",
+                placeholder: "Password",
+                autofocus: true,
+                onchange: e => { password = e.target.value; }}),
+                render("p", { className: "textblock error" }));
         };
     };
 
@@ -434,9 +452,10 @@ const App = (function () {
         this.view = function(root) {
             render(root,
                 render("nav", [
-                    nav_button("Load from File", e => push_nav(new LoadLocalFileController())),
-                    nav_button("Save to File", e => push_nav(new SaveToLocalFileController())),
-                    nav_button("Configure Github", e => push_nav(new ConnectGithubController())),
+                    // nav_button("Load from File", e => push_nav(new LoadLocalFileController())),
+                    // nav_button("Save to File", e => push_nav(new SaveToLocalFileController())),
+                    // nav_button("Configure Github", e => push_nav(new ConnectGithubController())),
+                    nav_button("Save", e => {}),
                     nav_button("About", e => push_nav(new AboutController())),
                 ]),
                 nav_spacer(),
@@ -543,22 +562,20 @@ const App = (function () {
     const ConnectGithubController = function() {
         let view_root = null;
         let master_password = "";
-        let github_username = "";
-        let github_password = "";
-        let github_reponame = "";
+        let config = {
+            type: "github",
+            username: "",
+            password: "",
+            reponame: ""
+        };
         let authenticate_handler = async function() {
             clear_validation(view_root);
             if (await validate(view_root)) {
-                let model = new GithubModel();
-                if (await model.authenticate(github_username, github_password, github_reponame)) {
+                if (await github_authenticate(config.username, config.password, config.reponame)) {
                     set_master_password(master_password);
-                    let info = {
-                        type: "github",
-                        username: github_username,
-                        password: github_password,
-                        reponame: github_reponame
-                    };
-                    set_local(LOCAL_STORAGE_CONFIG_KEY, info);
+                    await save_config(config);
+                    pop_nav_all();
+                    push_nav(new MainController());
                 } else {
                     query("p.error", view_root).innerHTML = "Github Validation Failed";
                 }
@@ -582,15 +599,15 @@ const App = (function () {
                 render("p", { className: "textblock" }, template("view_connect_github_text")),
                 form_input({
                     placeholder: "Github Username",
-                    onchange: e => { github_username = e.target.value; },
+                    onchange: e => { config.username = e.target.value; },
                     validators: [new RequiredValidator("Github Username is required.")]}),
                 form_password({
                     placeholder: "Github Password",
-                    onchange: e => { github_password = e.target.value; },
+                    onchange: e => { config.password = e.target.value; },
                     validators: [new RequiredValidator("Github Password is required.")]}),
                 form_input({
                     placeholder: "Github Repo Name",
-                    onchange: e => { github_reponame = e.target.value; },
+                    onchange: e => { config.reponame = e.target.value; },
                     validators: [new RequiredValidator("Github Repo Name is required.")]}),
                 render("p", { className: "textblock error" }));
         };
@@ -877,7 +894,7 @@ const App = (function () {
 
     const app_start = function () {
 
-        if (local_config_exists()) {
+        if (config_exists()) {
             push_nav(new AuthenticateController());
         } else {
             push_nav(new InitController());
