@@ -286,8 +286,14 @@ const App = (function () {
         return render("button", { title: title, onclick: click_handler }, title);
     };
 
-    const nav_spacer = function() {
-        return render("div", { className: "nav_spacer" }, "&nbsp;");
+    const nav_spacer = function(size) {
+        if (!is_instantiated(size)) size = 1;
+        switch(size) {
+            case 1:
+                return render("div", {className: "nav_spacer"}, "&nbsp;");
+            case 2:
+                return render("div", {className: "nav_spacer_double"}, "&nbsp;<br />&nbsp;");
+        }
     };
 
     const form_input = function(options) {
@@ -351,7 +357,9 @@ const App = (function () {
     const get_active_doc = function() {
         return docs[active_doc_index];
     };
-
+    const doc_exists = function() {
+        return docs.length > 0;
+    };
     const add_doc = function(name, text) {
         docs.push(new DocModel(name, text));
         active_doc_index = docs.length - 1;
@@ -435,8 +443,9 @@ const App = (function () {
                 placeholder: "Password",
                 autofocus: true,
                 onchange: e => { password = e.target.value; }}),
-                render("p", { className: "textblock error" }));
+            render("p", { className: "textblock error" }));
         };
+        this.default_enter = authenticate_handler;
     };
 
     const ConfigureMasterPassword = function () {
@@ -449,21 +458,74 @@ const App = (function () {
     };
 
     const MainController = function() {
-        this.view = function(root) {
-            render(root,
-                render("nav", [
-                    // nav_button("Load from File", e => push_nav(new LoadLocalFileController())),
-                    // nav_button("Save to File", e => push_nav(new SaveToLocalFileController())),
-                    // nav_button("Configure Github", e => push_nav(new ConnectGithubController())),
-                    nav_button("Save", e => {}),
-                    nav_button("About", e => push_nav(new AboutController())),
-                ]),
-                nav_spacer(),
-                render("p", get_active_doc().get_text(), { 
+        let view_root = null;
+        const render_editable_area = function() {
+            if (doc_exists()) {
+                return render("p", get_active_doc().get_text(), { 
                     className: "editable", 
                     "contentEditable": true,
-                    onkeyup: e => { get_active_doc().set_text(e.target.innerHTML); }}));
+                    onkeyup: e => { get_active_doc().set_text(e.target.innerHTML); }})
+            } else {
+                return render("span");
+            }
         };
+        const render_file_names = function() {
+            if (doc_exists()) {
+                const  tabs = [];
+                each(docs, doc => tabs.push(nav_button(doc.get_name(), e => {})));
+                return render("div", tabs);
+            } else {
+                return render("span");
+            }
+        };
+        const render_view = function(root) {
+            view_root = root;
+            render(root,
+                render("nav", [
+                    render("div", [
+                        // nav_button("Load from File", e => push_nav(new LoadLocalFileController())),
+                        // nav_button("Save to File", e => push_nav(new SaveToLocalFileController())),
+                        // nav_button("Configure Github", e => push_nav(new ConnectGithubController())),
+                        nav_button("New", e => push_nav(new NewDocController())),
+                        nav_button("Save", e => {}),
+                        nav_button("About", e => push_nav(new AboutController())),
+                    ]),
+                    render_file_names()
+                ]),
+                nav_spacer(doc_exists() ? 2 : 1),
+                render_editable_area());
+        };
+
+        this.view = render_view;
+    };
+
+    const NewDocController = function() {
+        let view_root = null;
+        let file_name = "";
+        const create_handler = async function() {
+            clear_validation(view_root);
+            if (await validate(view_root)) {
+                add_doc(file_name,""); 
+                pop_nav();
+            }
+        };
+        const cancel_handler = pop_nav;
+        this.view = function(root) {
+            view_root = root;
+            render(root,
+                render("nav", [
+                    nav_button("Create", create_handler),
+                    nav_button("Cancel", cancel_handler)
+                ]),
+                nav_spacer(),
+                form_input({
+                    placeholder: "File Name",
+                    autofocus: true,
+                    onchange: e => file_name = e.target.value,
+                    validators:[new RequiredValidator("File Name is required.")]}));
+        };
+        this.default_enter = create_handler;
+        this.default_esc = cancel_handler;
     };
 
     const AboutController = function() {
@@ -475,6 +537,8 @@ const App = (function () {
                 nav_spacer(),
                 render("div", { className: "about_view" }, template("view_about")));
         };
+        this.default_enter = pop_nav;
+        this.default_esc = pop_nav;
     };
 
     const LoadLocalFileController = function() {
@@ -499,12 +563,13 @@ const App = (function () {
                 file_reader.readAsText(file);
             }
         };
+        let cancel_handler = pop_nav;
         this.view = function(root) {
             view_root = root;
             render(root,
                 render("nav",[
                     nav_button("Load", load_handler),
-                    nav_button("Cancel", pop_nav)]),
+                    nav_button("Cancel", cancel_handler)]),
                 nav_spacer(),
                 form_file({
                     onchange: e => { file = e.target.files[0]; },
@@ -513,6 +578,8 @@ const App = (function () {
                     placeholder: "Password",
                     onchange: e => { password = e.target.value; }}));
         };
+        this.default_enter = load_handler;
+        this.default_esc = cancel_handler;
     };
 
     const SaveToLocalFileController = function() {
@@ -535,12 +602,13 @@ const App = (function () {
                 set_validation_error("confirm_password", view_root, ex);
             }
         };
+        let cancel_handler = pop_nav;
         this.view = function(root) {
             view_root = root;
             render(root,
                 render("nav",[
                     nav_button("Save", save_handler),
-                    nav_button("Cancel", pop_nav)]),
+                    nav_button("Cancel", cancel_handler)]),
                 nav_spacer(),
                 form_input({
                     placeholder: "File Name",
@@ -557,6 +625,8 @@ const App = (function () {
                     validators: [new ConfirmIdenticalValuesValidator("#password", "Passwords do not match!")]}),
                 render("p", { className: "textblock" }, template("view_savelocal_text")));
         };
+        this.default_enter = save_handler;
+        this.default_esc = cancel_handler;
     };
 
     const ConnectGithubController = function() {
@@ -568,7 +638,7 @@ const App = (function () {
             password: "",
             reponame: ""
         };
-        let authenticate_handler = async function() {
+        const authenticate_handler = async function() {
             clear_validation(view_root);
             if (await validate(view_root)) {
                 if (await github_authenticate(config.username, config.password, config.reponame)) {
@@ -581,12 +651,13 @@ const App = (function () {
                 }
             }
         };
+        const cancel_handler = pop_nav;
         this.view = function(root) {
             view_root = root;
             render(root,
                 render("nav", [
                     nav_button("Authenticate", authenticate_handler),
-                    nav_button("Cancel", pop_nav)]),
+                    nav_button("Cancel", cancel_handler)]),
                 nav_spacer(),
                 form_password({
                     id: "password",
@@ -611,6 +682,8 @@ const App = (function () {
                     validators: [new RequiredValidator("Github Repo Name is required.")]}),
                 render("p", { className: "textblock error" }));
         };
+        this.default_enter = authenticate_handler;
+        this.default_esc = cancel_handler;
     };
 
     /* #endregion */
@@ -683,23 +756,18 @@ const App = (function () {
 
     /* #region HANDLERS */
 
-    const view_dynamic_default_keyup_handler = function(evnt) {
+    const default_keyup_handler = function(evnt) {
         const key = evnt.key;
-        //log("Key Up: " + key);
-        const el_section = evnt.target.closest("section");
-        if (el_section) {
+        const current_controller = last(nav);
+        if (current_controller) {
             if (key === "Enter") {
-                if (is_function(el_section.secpad_default_enter_press_handler)) {
-                    el_section.secpad_default_enter_press_handler(evnt)
-                        .then(clear_for_safety)
-                        .catch(error => { log("Key Up Handler Error: " + error); });
+                if (is_function(current_controller.default_enter)) {
+                    current_controller.default_enter(evnt);
                 }
             }
             else if (key === "Escape") {
-                if (is_function(el_section.secpad_default_esc_press_handler)) {
-                    el_section.secpad_default_esc_press_handler(evnt)
-                        .then(clear_for_safety)
-                        .catch(error => { log("Escape Handler Error: " + error); });
+                if (is_function(current_controller.default_esc)) {
+                    current_controller.default_esc(evnt);
                 }
             }
         }
@@ -894,13 +962,15 @@ const App = (function () {
 
     const app_start = function () {
 
+        add_listener(document.body, "keyup", default_keyup_handler);
+
         if (config_exists()) {
             push_nav(new AuthenticateController());
         } else {
             push_nav(new InitController());
         }
 
-        add_doc("secpad.json", "");
+        //add_doc("secpad.json", "");
         //push_nav(new MainController());
         interval_id = setInterval(timer_tick_handler, GLOBAL_INTERVAL_MILLISECONDS);
     };
