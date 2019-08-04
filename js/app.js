@@ -385,6 +385,7 @@ const App = (function () {
 
     const add_doc = function(name, text) {
         docs.push(new DocModel(name, text));
+        set_active_doc(last(docs));
     };
 
     const DocModel = function(name, text) {
@@ -422,6 +423,7 @@ const App = (function () {
         this.get_text = () => _text;
         this.set_active = active => _isactive = active;
         this.get_active = () => _isactive;
+        this.stop_timer = () => clearInterval(_interval_id);
     };
 
     const github_call = function(url, method, username, password) {
@@ -974,12 +976,77 @@ const App = (function () {
             let str = buffer_to_string(buffer2);
             _test_assert_equals(_test_ascii_keyboard_characters, str);
         });
+
+        await _test_runner("is_instantiated", () => {
+            _test_assert_equals(true, is_instantiated({}));
+            _test_assert_equals(true, is_instantiated(1));
+            _test_assert_equals(true, is_instantiated("an object"));
+            _test_assert_equals(true, is_instantiated(() => {}));
+            _test_assert_equals(true, is_instantiated(is_instantiated));
+            _test_assert_equals(false, is_instantiated(null));
+            _test_assert_equals(false, is_instantiated(undefined));
+        });
+
+        await _test_runner("is_object", () => {
+            _test_assert_equals(true, is_object({}));
+            _test_assert_equals(false, is_object(1));
+            _test_assert_equals(false, is_object("an object"));
+            _test_assert_equals(false, is_object(null));
+            _test_assert_equals(false, is_object(undefined));
+        });
+
+        await _test_runner("is_function", () => {
+            _test_assert_equals(true, is_function(is_object));
+            _test_assert_equals(false, is_function(null));
+            _test_assert_equals(true, is_function(() => { }));
+            _test_assert_equals(false, is_function({}));
+        });
+
+        await _test_runner("is_elementnode", () => {
+            _test_assert_equals(true, is_elementnode(document.createElement("div")));
+            _test_assert_equals(false, is_elementnode(document.createAttribute("id")));
+            _test_assert_equals(false, is_elementnode(null));
+            _test_assert_equals(false, is_elementnode({}));
+        });
+
+        await _test_runner("is_string", () => {
+            _test_assert_equals(true, is_string(""));
+            _test_assert_equals(true, is_string("asdf"));
+            _test_assert_equals(false, is_string(null));
+            _test_assert_equals(false, is_string(undefined));
+            _test_assert_equals(false, is_string({}));
+            _test_assert_equals(false, is_string([]));
+        });
+
+        await _test_runner("is_string_valid", () => {
+            _test_assert_equals(true, is_string_valid("a"));
+            _test_assert_equals(false, is_string_valid(""));
+            _test_assert_equals(false, is_string_valid({}));
+            _test_assert_equals(false, is_string_valid([]));
+            _test_assert_equals(false, is_string_valid(null));
+            _test_assert_equals(false, is_string_valid(undefined));
+        });
+
+        await _test_runner("is_boolean", () => {
+            _test_assert_equals(true, is_boolean(true));
+            _test_assert_equals(true, is_boolean(false));
+            _test_assert_equals(true, is_boolean(1 == 1));
+            _test_assert_equals(false, is_boolean(1));
+            _test_assert_equals(false, is_boolean(0));
+            _test_assert_equals(false, is_boolean({}));
+            _test_assert_equals(false, is_boolean(""));
+            _test_assert_equals(false, is_boolean("asdf"));
+            _test_assert_equals(false, is_boolean([]));
+        });
     };
 
     //window.run_tests = _test_suite;
     /* #endregion */
 
     const app_start = function () {
+
+        _test_suite(query("#test_container"));
+        return;
 
         app_view_root = document.body;
 
