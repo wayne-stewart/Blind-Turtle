@@ -2,26 +2,19 @@ const App = (function () {
     "use strict"
 
     /* #region GLOBAL STATE */
-        const GITHUB_REPO_URL = "https://api.github.com/repos";
-        const LOCAL_STORAGE_CONFIG_KEY = "__secpad_config_";
+    const GITHUB_REPO_URL = "https://api.github.com/repos";
+    const LOCAL_STORAGE_CONFIG_KEY = "__secpad_config_";
     const EDIT_COUNTDOWN_TO_SAVE = 2;
     const GLOBAL_INTERVAL_MILLISECONDS = 1000;
 
     /* application state */
     let nav = [],               // the navigation stack
         docs = [],              // the current open documents
-        active_doc_index = 0,
+        app_view_root = null,
         animation_queue = [],   // items that are currently animating
         animation_time = 0,     // animation timestamp, 0 means animation not running
-        interval_id,
         control_id = 100,
-        edit_countdown = 0,
-        edit_dirty = false,
         master_password = ""
-
-    const create_control_id = function() {
-        return "_" + (control_id++).toString();
-    };
     /* #endregion */
 
     /* #region LOGGING */
@@ -160,15 +153,20 @@ const App = (function () {
     const query             = (selector, el) => is_instantiated(el) ? el.querySelector(selector) : document.querySelector(selector);
     const query_all         = (selector, el) => is_instantiated(el) ? el.querySelectorAll(selector) : document.querySelectorAll(selector);
     const add_listener      = (el, event, listener) => el.addEventListener(event, listener, false);
+    const remove_listener   = (el, event, listener) => el.removeEventListener(event, listener);
     const string_to_buffer  = string => (new TextEncoder()).encode(string).buffer;
     const buffer_to_string  = buffer => (new TextDecoder("utf-8", {fatal:true})).decode(buffer);
     const buffer_to_hex     = buffer => Array.prototype.map.call(new Uint8Array(buffer), x=>("00" + x.toString(16)).slice(-2)).join('');
     const hex_to_buffer     = hex => { const buffer = new Uint8Array(hex.length / 2); for (let i = 0, j = 0; i < hex.length; i+=2, j++) buffer[j] = "0123456789abcdef".indexOf(hex[i]) * 16 + "0123456789abcdef".indexOf(hex[i+1]); return buffer.buffer; };
+    const string_to_hex     = string => buffer_to_hex(string_to_buffer(string));
     const try_focus         = el => is_elementnode(el) ? el.focus() : null;
+    const is_enter_key      = e => (e.key === "Enter");
+    const is_esc_key        = e => (e.key === "Escape");
+    const careful_call      = (obj,fname,farg) => { if (is_instantiated(obj) && is_function(obj[fname])) obj[fname].apply(obj, farg); };
 
     const center = function(el, center_on) {
         if (!is_instantiated(center_on)) {
-            center_on = document.body;
+            center_on = app_view_root;
         }
         el.style.top = center_on.style.top + center_on.clientHeight / 2 - el.clientHeight / 2;
         el.style.left = center_on.style.left + center_on.clientWidth / 2 - el.clientWidth / 2;
@@ -193,6 +191,10 @@ const App = (function () {
     /* #endregion */
 
     /* #region UI RENDERING, CONTROLS */
+    const create_control_id = function() {
+        return "_" + (control_id++).toString();
+    };
+
     const render = function(/* variable number of arguments */) {
         // state machine
         let state = 0;
@@ -265,17 +267,14 @@ const App = (function () {
 
     const push_nav = function(controller) {
         nav.push(controller);
-        controller.view(document.body);
+        controller.view(app_view_root);
         try_focus(query("input[autofocus]"));
     };
 
     const pop_nav = function() {
-        let popped = nav.pop();
-        let x = last(nav);
-        if (is_instantiated(x)) {
-            x.view(document.body);
-        }
-        return popped;
+        nav.pop();
+        destroy_default_handlers(app_view_root);
+        careful_call(last(nav), "view", [app_view_root]);
     };
 
     const pop_nav_all = function() {
@@ -284,6 +283,15 @@ const App = (function () {
 
     const nav_button = function(title, click_handler) {
         return render("button", { title: title, onclick: click_handler }, title);
+    };
+
+    const tab_button = function(title, is_active, click_handler) {
+        const opts = {
+            title: title,
+            onclick: click_handler,
+            className: is_active ? "active" : ""
+        };
+        return render("button", opts, title);
     };
 
     const nav_spacer = function(size) {
@@ -355,24 +363,65 @@ const App = (function () {
     };
     
     const get_active_doc = function() {
-        return docs[active_doc_index];
+        let active_doc = null;
+        each(docs, doc => { if (doc.get_active()) active_doc = doc; });
+        if (!is_instantiated(active_doc)) {
+            active_doc = first(docs);
+            if (is_instantiated(active_doc)) {
+                active_doc.set_active(true);
+            }
+        }
+        return active_doc;
     };
+
+    const set_active_doc = function(doc) {
+        each(docs, doc => doc.set_active(false));
+        doc.set_active(true);
+    };
+
     const doc_exists = function() {
         return docs.length > 0;
     };
+
     const add_doc = function(name, text) {
         docs.push(new DocModel(name, text));
-        active_doc_index = docs.length - 1;
     };
 
     const DocModel = function(name, text) {
         let _name = name;
         let _text = text;
+        let _isactive = false;
+        let _edit_countdown = 0;
+        let _edit_dirty = false;
+        let _saved_hash = null;
+        let _interval_id = setInterval(function() {
+            if (_edit_countdown > 0) {
+                _edit_countdown -= 1;
+            }
+            if (_edit_countdown == 0 && _edit_dirty) {
+                _edit_dirty = false;
+                hash_string_sha256(_text)
+                .then(async hashed_value => {
+                    const hex_value = buffer_to_hex(hashed_value);
+                    if (_saved_hash !== hex_value) {
+                        _saved_hash = hex_value;
+                        log(hex_value + " " + _name);
+                        if (get_master_password()) {
+                            let encrypted_text = await encrypt_string_to_base64(get_master_password(), _text);
+                            localStorage.setItem(_name, encrypted_text);
+                            show_saved_to_local_storage();
+                        }
+                    }
+                });
+            }
+        }, GLOBAL_INTERVAL_MILLISECONDS);
 
         this.set_name = name => _name = name;
         this.get_name = () => _name;
-        this.set_text = text => _text = text;
+        this.set_text = text => { _text = text; _edit_dirty = true; _edit_countdown = EDIT_COUNTDOWN_TO_SAVE; }
         this.get_text = () => _text;
+        this.set_active = active => _isactive = active;
+        this.get_active = () => _isactive;
     };
 
     const github_call = function(url, method, username, password) {
@@ -434,6 +483,7 @@ const App = (function () {
         };
         this.view = function(root) {
             view_root = root;
+            create_default_handlers(app_view_root, authenticate_handler, null);
             render(root, render("nav", [
                 nav_button("Authenticate", authenticate_handler)
             ]),
@@ -445,7 +495,6 @@ const App = (function () {
                 onchange: e => { password = e.target.value; }}),
             render("p", { className: "textblock error" }));
         };
-        this.default_enter = authenticate_handler;
     };
 
     const ConfigureMasterPassword = function () {
@@ -472,7 +521,8 @@ const App = (function () {
         const render_file_names = function() {
             if (doc_exists()) {
                 const  tabs = [];
-                each(docs, doc => tabs.push(nav_button(doc.get_name(), e => {})));
+                each(docs, doc => tabs.push(tab_button(doc.get_name(), doc.get_active(), e => { 
+                    set_active_doc(doc); render_view(view_root); })));
                 return render("div", tabs);
             } else {
                 return render("span");
@@ -493,9 +543,9 @@ const App = (function () {
                     render_file_names()
                 ]),
                 nav_spacer(doc_exists() ? 2 : 1),
-                render_editable_area());
+                render_editable_area(),
+                render("div", { id: "popover_message" }));
         };
-
         this.view = render_view;
     };
 
@@ -512,6 +562,7 @@ const App = (function () {
         const cancel_handler = pop_nav;
         this.view = function(root) {
             view_root = root;
+            create_default_handlers(app_view_root, create_handler, cancel_handler);
             render(root,
                 render("nav", [
                     nav_button("Create", create_handler),
@@ -524,12 +575,11 @@ const App = (function () {
                     onchange: e => file_name = e.target.value,
                     validators:[new RequiredValidator("File Name is required.")]}));
         };
-        this.default_enter = create_handler;
-        this.default_esc = cancel_handler;
     };
 
     const AboutController = function() {
         this.view = function(root) {
+            create_default_handlers(app_view_root, pop_nav, pop_nav);
             render(root, 
                 render("nav", [
                     nav_button("Close", pop_nav)
@@ -537,8 +587,6 @@ const App = (function () {
                 nav_spacer(),
                 render("div", { className: "about_view" }, template("view_about")));
         };
-        this.default_enter = pop_nav;
-        this.default_esc = pop_nav;
     };
 
     const LoadLocalFileController = function() {
@@ -566,6 +614,7 @@ const App = (function () {
         let cancel_handler = pop_nav;
         this.view = function(root) {
             view_root = root;
+            create_default_handlers(app_view_root, load_handler, cancel_handler);
             render(root,
                 render("nav",[
                     nav_button("Load", load_handler),
@@ -578,8 +627,6 @@ const App = (function () {
                     placeholder: "Password",
                     onchange: e => { password = e.target.value; }}));
         };
-        this.default_enter = load_handler;
-        this.default_esc = cancel_handler;
     };
 
     const SaveToLocalFileController = function() {
@@ -605,6 +652,7 @@ const App = (function () {
         let cancel_handler = pop_nav;
         this.view = function(root) {
             view_root = root;
+            create_default_handlers(app_view_root, save_handler, cancel_handler);
             render(root,
                 render("nav",[
                     nav_button("Save", save_handler),
@@ -625,8 +673,6 @@ const App = (function () {
                     validators: [new ConfirmIdenticalValuesValidator("#password", "Passwords do not match!")]}),
                 render("p", { className: "textblock" }, template("view_savelocal_text")));
         };
-        this.default_enter = save_handler;
-        this.default_esc = cancel_handler;
     };
 
     const ConnectGithubController = function() {
@@ -654,6 +700,7 @@ const App = (function () {
         const cancel_handler = pop_nav;
         this.view = function(root) {
             view_root = root;
+            create_default_handlers(app_view_root, authenticate_handler, cancel_handler);
             render(root,
                 render("nav", [
                     nav_button("Authenticate", authenticate_handler),
@@ -682,8 +729,6 @@ const App = (function () {
                     validators: [new RequiredValidator("Github Repo Name is required.")]}),
                 render("p", { className: "textblock error" }));
         };
-        this.default_enter = authenticate_handler;
-        this.default_esc = cancel_handler;
     };
 
     /* #endregion */
@@ -756,62 +801,36 @@ const App = (function () {
 
     /* #region HANDLERS */
 
-    const default_keyup_handler = function(evnt) {
-        const key = evnt.key;
-        const current_controller = last(nav);
-        if (current_controller) {
-            if (key === "Enter") {
-                if (is_function(current_controller.default_enter)) {
-                    current_controller.default_enter(evnt);
-                }
+    const create_default_handlers = function(el, enter, esc) {
+        el.default_keyup_handler = function(e) {
+            if (is_enter_key(e) && is_function(enter)) {
+                enter(e);
+            } 
+            else if (is_esc_key(e) && is_function(esc)) {
+                esc(e);
             }
-            else if (key === "Escape") {
-                if (is_function(current_controller.default_esc)) {
-                    current_controller.default_esc(evnt);
-                }
-            }
+        };
+        add_listener(el, "keyup", el.default_keyup_handler);
+    };
+
+    const destroy_default_handlers = function(el) {
+        if (is_function(el.default_keyup_handler)) {
+            remove_listener(el, "keyup", el.default_keyup_handler);
+            el.default_keyup_handler = null;
         }
     };
 
-    const view_doc_text_edit_handler = function (e) {
-        edit_countdown = EDIT_COUNTDOWN_TO_SAVE;
-        edit_dirty = true;
-    };
-
-    const timer_tick_handler = function () {
-        if (edit_countdown > 0) {
-            edit_countdown -= 1;
-        }
-        if (edit_countdown == 0 && edit_dirty) {
-            edit_dirty = false;
-            const text = el_view_doc_text.value;
-            hash_string_sha256(text)
-            .then(hashed_value => {
-                const hex_value = hashed_value.to_hex_string();
-                if (el_view_doc_text.saved_hashed_value !== hex_value) {
-                    el_view_doc_text.saved_hashed_value = hex_value;
-                    log(hex_value + " " + text);
-                    if (master_password) {
-                        text = encrypt(master_password, text);
-                        set_local(LOCAL_STORAGE_DATA_KEY, text);
-                        show_saved_to_local_storage();
-                    } else {
-                        log("global password not set, local storage save disabled.");
-                    }
-                }
-            });
-        }
-    };
     /* #endregion */
 
     /* #region MESSAGES */
     const show_popover_message = function(message, cssclass, duration) {
-        el_popover_message.innerHTML = message;
-        el_popover_message.className = cssclass;
-        show(el_popover_message);
-        center(el_popover_message);
+        const el = query("#popover_message", app_view_root);
+        el.innerHTML = message;
+        el.className = cssclass;
+        show(el);
+        center(el);
         // animate opacity from 1 to 0 over 1.5 seconds
-        animate(el_popover_message, "opacity", 1, 0, duration, lerp_number, function(){ hide(el_popover_message); });
+        animate(el, "opacity", 1, 0, duration, lerp_number, function(){ hide(el); });
     };
 
     const show_saved_to_local_storage = function() {
@@ -962,17 +981,13 @@ const App = (function () {
 
     const app_start = function () {
 
-        add_listener(document.body, "keyup", default_keyup_handler);
+        app_view_root = document.body;
 
         if (config_exists()) {
             push_nav(new AuthenticateController());
         } else {
             push_nav(new InitController());
         }
-
-        //add_doc("secpad.json", "");
-        //push_nav(new MainController());
-        interval_id = setInterval(timer_tick_handler, GLOBAL_INTERVAL_MILLISECONDS);
     };
 
     if (document.readyState === "complete" || document.readyState === "loaded") {

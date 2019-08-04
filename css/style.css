@@ -38,15 +38,20 @@ html, body {
     height:100%;
 }
 
-/* body {
-    display:grid;
-    grid-template-rows: minmax(auto, auto) 1fr;
-} */
-
 nav {
     background-color:#B0E2FF;
     width:100%;
     position:fixed;
+}
+
+nav button.active {
+    background-color:white;
+    border-color:white;
+}
+
+nav button.active:hover {
+    background-color:white;
+    border-color:white;
 }
 
 div.nav_spacer {
