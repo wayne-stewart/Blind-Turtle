@@ -952,9 +952,9 @@ const App = (function () {
         });
     };
 
-    const _test_assert_equals = function(expected, actual) {
+    const _test_assert_equals = function(id, expected, actual) {
         if (expected !== actual) {
-            throw "expected: " + expected + " actual: " + actual;
+            throw "test id: " + id + " expected: " + expected + " actual: " + actual;
         }
     };
 
@@ -963,80 +963,207 @@ const App = (function () {
         await _test_runner("string_to_buffer buffer_to_string", () => {
             let utf8_arraybuffer = string_to_buffer(_test_ascii_keyboard_characters);
             let str = buffer_to_string(utf8_arraybuffer);
-            _test_assert_equals(_test_ascii_keyboard_characters.length, utf8_arraybuffer.byteLength);
-            _test_assert_equals(_test_ascii_keyboard_characters, str);
+            _test_assert_equals(1,_test_ascii_keyboard_characters.length, utf8_arraybuffer.byteLength);
+            _test_assert_equals(2,_test_ascii_keyboard_characters, str);
         });
 
         await _test_runner("buffer_to_hex hex_to_buffer", () => {
             let buffer1 = string_to_buffer(_test_ascii_keyboard_characters);
             let hex_string = buffer_to_hex(buffer1);
-            _test_assert_equals(_test_ascii_keyboard_characters_to_hex, hex_string);
+            _test_assert_equals(1,_test_ascii_keyboard_characters_to_hex, hex_string);
             let buffer2 = hex_to_buffer(hex_string);
-            _test_assert_equals(_test_ascii_keyboard_characters.length, buffer2.byteLength);
+            _test_assert_equals(2,_test_ascii_keyboard_characters.length, buffer2.byteLength);
             let str = buffer_to_string(buffer2);
-            _test_assert_equals(_test_ascii_keyboard_characters, str);
+            _test_assert_equals(3,_test_ascii_keyboard_characters, str);
         });
 
         await _test_runner("is_instantiated", () => {
-            _test_assert_equals(true, is_instantiated({}));
-            _test_assert_equals(true, is_instantiated(1));
-            _test_assert_equals(true, is_instantiated("an object"));
-            _test_assert_equals(true, is_instantiated(() => {}));
-            _test_assert_equals(true, is_instantiated(is_instantiated));
-            _test_assert_equals(false, is_instantiated(null));
-            _test_assert_equals(false, is_instantiated(undefined));
+            _test_assert_equals(1,true, is_instantiated({}));
+            _test_assert_equals(2,true, is_instantiated(1));
+            _test_assert_equals(3,true, is_instantiated("an object"));
+            _test_assert_equals(4,true, is_instantiated(() => {}));
+            _test_assert_equals(5,true, is_instantiated(is_instantiated));
+            _test_assert_equals(6,false, is_instantiated(null));
+            _test_assert_equals(7,false, is_instantiated(undefined));
         });
 
         await _test_runner("is_object", () => {
-            _test_assert_equals(true, is_object({}));
-            _test_assert_equals(false, is_object(1));
-            _test_assert_equals(false, is_object("an object"));
-            _test_assert_equals(false, is_object(null));
-            _test_assert_equals(false, is_object(undefined));
+            _test_assert_equals(1,true, is_object({}));
+            _test_assert_equals(2,false, is_object(1));
+            _test_assert_equals(3,false, is_object("an object"));
+            _test_assert_equals(4,false, is_object(null));
+            _test_assert_equals(5,false, is_object(undefined));
         });
 
         await _test_runner("is_function", () => {
-            _test_assert_equals(true, is_function(is_object));
-            _test_assert_equals(false, is_function(null));
-            _test_assert_equals(true, is_function(() => { }));
-            _test_assert_equals(false, is_function({}));
+            _test_assert_equals(1,true, is_function(is_object));
+            _test_assert_equals(2,false, is_function(null));
+            _test_assert_equals(3,true, is_function(() => { }));
+            _test_assert_equals(4,false, is_function({}));
         });
 
         await _test_runner("is_elementnode", () => {
-            _test_assert_equals(true, is_elementnode(document.createElement("div")));
-            _test_assert_equals(false, is_elementnode(document.createAttribute("id")));
-            _test_assert_equals(false, is_elementnode(null));
-            _test_assert_equals(false, is_elementnode({}));
+            _test_assert_equals(1,true, is_elementnode(document.createElement("div")));
+            _test_assert_equals(2,false, is_elementnode(document.createAttribute("id")));
+            _test_assert_equals(3,false, is_elementnode(null));
+            _test_assert_equals(4,false, is_elementnode({}));
         });
 
-        await _test_runner("is_string", () => {
-            _test_assert_equals(true, is_string(""));
-            _test_assert_equals(true, is_string("asdf"));
-            _test_assert_equals(false, is_string(null));
-            _test_assert_equals(false, is_string(undefined));
-            _test_assert_equals(false, is_string({}));
-            _test_assert_equals(false, is_string([]));
-        });
+        await _test_runner("is_string and is_string_valid", () => {
+            _test_assert_equals(1,true, is_string(""));
+            _test_assert_equals(2,true, is_string("asdf"));
+            _test_assert_equals(3,false, is_string(null));
+            _test_assert_equals(4,false, is_string(undefined));
+            _test_assert_equals(5,false, is_string({}));
+            _test_assert_equals(6,false, is_string([]));
 
-        await _test_runner("is_string_valid", () => {
-            _test_assert_equals(true, is_string_valid("a"));
-            _test_assert_equals(false, is_string_valid(""));
-            _test_assert_equals(false, is_string_valid({}));
-            _test_assert_equals(false, is_string_valid([]));
-            _test_assert_equals(false, is_string_valid(null));
-            _test_assert_equals(false, is_string_valid(undefined));
+            _test_assert_equals(7,true, is_string_valid("a"));
+            _test_assert_equals(8,false, is_string_valid(""));
+            _test_assert_equals(9,false, is_string_valid({}));
+            _test_assert_equals(10,false, is_string_valid([]));
+            _test_assert_equals(11,false, is_string_valid(null));
+            _test_assert_equals(12,false, is_string_valid(undefined));
         });
 
         await _test_runner("is_boolean", () => {
-            _test_assert_equals(true, is_boolean(true));
-            _test_assert_equals(true, is_boolean(false));
-            _test_assert_equals(true, is_boolean(1 == 1));
-            _test_assert_equals(false, is_boolean(1));
-            _test_assert_equals(false, is_boolean(0));
-            _test_assert_equals(false, is_boolean({}));
-            _test_assert_equals(false, is_boolean(""));
-            _test_assert_equals(false, is_boolean("asdf"));
-            _test_assert_equals(false, is_boolean([]));
+            _test_assert_equals(1,true, is_boolean(true));
+            _test_assert_equals(2,true, is_boolean(false));
+            _test_assert_equals(3,true, is_boolean(1 == 1));
+            _test_assert_equals(4,false, is_boolean(1));
+            _test_assert_equals(5,false, is_boolean(0));
+            _test_assert_equals(6,false, is_boolean({}));
+            _test_assert_equals(7,false, is_boolean(""));
+            _test_assert_equals(8,false, is_boolean("asdf"));
+            _test_assert_equals(9,false, is_boolean([]));
+        });
+
+        await _test_runner("is_array", () => {
+            _test_assert_equals(1,false, is_array(true));
+            _test_assert_equals(2,false, is_array(false));
+            _test_assert_equals(3,false, is_array(1 == 1));
+            _test_assert_equals(4,false, is_array(1));
+            _test_assert_equals(5,false, is_array(0));
+            _test_assert_equals(6,false, is_array({}));
+            _test_assert_equals(7,false, is_array(""));
+            _test_assert_equals(8,false, is_array("asdf"));
+            _test_assert_equals(9,true, is_array([]));
+        });
+
+        await _test_runner("swap", () => {
+            let a = [1,2,3,4];
+            swap(a, 1, 2);
+            _test_assert_equals(1, 3, a[1]);
+            _test_assert_equals(2, 2, a[2]);
+        });
+
+        await _test_runner("each", () => {
+            let a = [1,2,3,4];
+            let s = "";
+            each(a, item => s += item);
+            _test_assert_equals(1, "1234", s);
+        });
+
+        await _test_runner("remove", () => {
+            let a = [1,2,3,4];
+            remove(a, 2);
+            _test_assert_equals(1, 1, a[0]);
+            _test_assert_equals(2, 4, a[1]);
+            _test_assert_equals(3, 3, a[2]);
+            _test_assert_equals(4, 3, a.length);
+            remove(a, 1);
+            _test_assert_equals(5, 2, a.length);
+            remove(a, 3);
+            _test_assert_equals(6, 1, a.length);
+            _test_assert_equals(7, 4, a[0]);
+            remove(a, 4);
+            _test_assert_equals(8, 0, a.length);
+        });
+
+        await _test_runner("skip", () => {
+            let a = [1,2,3,4];
+            let b = skip(a, 2);
+            let s_b = "";
+            let s_a = "";
+            each(a, item => s_a += item);
+            each(b, item => s_b += item);
+            _test_assert_equals(1, "1234", s_a);
+            _test_assert_equals(2, "34", s_b);
+        });
+
+        await _test_runner("first and last", () => {
+            let a = [1,2,3,4];
+            let b = first(a);
+            let c = last(a);
+            _test_assert_equals(1, 1, b);
+            _test_assert_equals(2, 4, c);
+        });
+
+        await _test_runner("query and query_all", () => {
+            let a = document.createElement("p");
+            a.id = "one";
+            let b = document.createElement("p");
+            b.name = "two";
+            let c = document.createElement("span");
+            c.className = "three";
+            let d = document.createElement("span");
+            d.className = "four";
+            document.body.append(a);
+            document.body.append(b);
+            a.append(c);
+            a.append(d);
+            let e = query("p#one");
+            let f = query_all("p");
+            let g = query(".three", a);
+            let h = query_all("span", a);
+            _test_assert_equals(1, a, e);
+            _test_assert_equals(2, 2, f.length);
+            _test_assert_equals(3, "one", f[0].id);
+            _test_assert_equals(4, "two", f[1].name);
+            _test_assert_equals(5, c, g);
+            _test_assert_equals(6, 2, h.length);
+            _test_assert_equals(7, "three", h[0].className);
+            _test_assert_equals(8, "four", h[1].className);
+        });
+
+        await _test_runner("add_listener and remove_listener", () =>{
+            let a = document.createElement("input");
+            let b = "";
+            let handler = e => {
+                b += e.key;
+            };
+            add_listener(a, "keyup", handler);
+            let simulate_keyup = function(el, value) {
+                var e = new Event("keyup");
+                e.key = value;
+                el.dispatchEvent(e);
+            };
+            simulate_keyup(a, "a");
+            simulate_keyup(a, "b");
+            simulate_keyup(a, "c");
+            remove_listener(a, "keyup", handler);
+            simulate_keyup(a, "d");
+            simulate_keyup(a, "e");
+            simulate_keyup(a, "f");
+            _test_assert_equals(1, "abc", b);
+        });
+
+        await _test_runner("careful_call", () => {
+            let a = "";
+            let b = "";
+            let c = "";
+            let d = {
+                e: function() { a = "no arg"; },
+                f: function(arg1) { b = arg1; },
+                g: function(arg1, arg2) { c = arg1 + arg2; }
+            };
+            careful_call(d, "does_not_exist");
+            careful_call(null, "does_not_exist");
+            careful_call(d, "e");
+            careful_call(d, "f", ["abc"]);
+            careful_call(d, "g", ["def", "ghi"]);
+            _test_assert_equals(1, "no arg", a);
+            _test_assert_equals(2, "abc", b);
+            _test_assert_equals(3, "defghi", c);
         });
     };
 
