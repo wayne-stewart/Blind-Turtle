@@ -397,7 +397,7 @@ const App = (function () {
         let _edit_dirty = false;
         let _saved_hash = null;
 
-        let _hash_text = () => buffer_to_hex(await hash_string_sha256(_text));
+        let _hash_text = async () => buffer_to_hex(await hash_string_sha256(_text));
 
         this.set_name = name => _name = name;
         this.get_name = () => _name;
@@ -409,7 +409,7 @@ const App = (function () {
 
         this.has_changed = async function() {
             if (_edit_dirty) {
-                const hash = _hash_text();
+                const hash = await _hash_text();
                 if (_saved_hash === hash) {
                     _edit_dirty = false;
                     return true;
@@ -430,7 +430,7 @@ const App = (function () {
                 show_saved_to_local_storage();
             }
             _edit_dirty = false;
-            _saved_hash = _hash_text();
+            _saved_hash = await _hash_text();
         };
     };
 
@@ -831,11 +831,11 @@ const App = (function () {
     };
 
     const interval_timer_callback = function() {
-        if (_edit_countdown > 0) {
-            _edit_countdown -= 1;
+        if (edit_countdown > 0) {
+            edit_countdown -= 1;
         }
-        if (_edit_countdown == 0) {
-            each(docs, doc => {
+        if (edit_countdown == 0) {
+            each(docs, async doc => {
                 if (await doc.has_changed()) {
                     await doc.save_to_local_storage();
                 }
