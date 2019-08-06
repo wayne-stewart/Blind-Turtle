@@ -11,6 +11,7 @@ const App = (function () {
     let nav = [],               // the navigation stack
         docs = [],              // the current open documents
         app_view_root = null,
+        edit_countdown = 0,
         animation_queue = [],   // items that are currently animating
         animation_time = 0,     // animation timestamp, 0 means animation not running
         control_id = 100,
@@ -391,39 +392,46 @@ const App = (function () {
     const DocModel = function(name, text) {
         let _name = name;
         let _text = text;
+        let _text_loaded = false;
         let _isactive = false;
-        let _edit_countdown = 0;
         let _edit_dirty = false;
         let _saved_hash = null;
-        let _interval_id = setInterval(function() {
-            if (_edit_countdown > 0) {
-                _edit_countdown -= 1;
-            }
-            if (_edit_countdown == 0 && _edit_dirty) {
-                _edit_dirty = false;
-                hash_string_sha256(_text)
-                .then(async hashed_value => {
-                    const hex_value = buffer_to_hex(hashed_value);
-                    if (_saved_hash !== hex_value) {
-                        _saved_hash = hex_value;
-                        log(hex_value + " " + _name);
-                        if (get_master_password()) {
-                            let encrypted_text = await encrypt_string_to_base64(get_master_password(), _text);
-                            localStorage.setItem(_name, encrypted_text);
-                            show_saved_to_local_storage();
-                        }
-                    }
-                });
-            }
-        }, GLOBAL_INTERVAL_MILLISECONDS);
+
+        let _hash_text = () => buffer_to_hex(await hash_string_sha256(_text));
 
         this.set_name = name => _name = name;
         this.get_name = () => _name;
-        this.set_text = text => { _text = text; _edit_dirty = true; _edit_countdown = EDIT_COUNTDOWN_TO_SAVE; }
+        this.set_text = text => { _text = text; _edit_dirty = true; _text_loaded = true; }
         this.get_text = () => _text;
         this.set_active = active => _isactive = active;
         this.get_active = () => _isactive;
-        this.stop_timer = () => clearInterval(_interval_id);
+        this.edit_dirty = () => _edit_dirty;
+
+        this.has_changed = async function() {
+            if (_edit_dirty) {
+                const hash = _hash_text();
+                if (_saved_hash === hash) {
+                    _edit_dirty = false;
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        this.save_to_local_storage = async function() {
+            let password = get_master_password();
+            if (password) {
+                let encrypted_text = await encrypt_string_to_base64(password, _text);
+                localStorage.setItem(_name, encrypted_text);
+                show_saved_to_local_storage();
+            }
+            else {
+                localStorage.setItem(_name, _text);
+                show_saved_to_local_storage();
+            }
+            _edit_dirty = false;
+            _saved_hash = _hash_text();
+        };
     };
 
     const github_call = function(url, method, username, password) {
@@ -822,6 +830,19 @@ const App = (function () {
         }
     };
 
+    const interval_timer_callback = function() {
+        if (_edit_countdown > 0) {
+            _edit_countdown -= 1;
+        }
+        if (_edit_countdown == 0) {
+            each(docs, doc => {
+                if (await doc.has_changed()) {
+                    await doc.save_to_local_storage();
+                }
+            });
+        }
+    };
+
     /* #endregion */
 
     /* #region MESSAGES */
@@ -1172,8 +1193,8 @@ const App = (function () {
 
     const app_start = function () {
 
-        _test_suite(query("#test_container"));
-        return;
+        // _test_suite(query("#test_container"));
+        // return;
 
         app_view_root = document.body;
 
@@ -1182,6 +1203,8 @@ const App = (function () {
         } else {
             push_nav(new InitController());
         }
+
+        setInterval(interval_timer_callback, GLOBAL_INTERVAL_MILLISECONDS);
     };
 
     if (document.readyState === "complete" || document.readyState === "loaded") {
