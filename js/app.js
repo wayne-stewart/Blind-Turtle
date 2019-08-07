@@ -3,7 +3,7 @@ const App = (function () {
 
     /* #region GLOBAL STATE */
     const GITHUB_REPO_URL = "https://api.github.com/repos";
-    const LOCAL_STORAGE_CONFIG_KEY = "__secpad_config_";
+    const LOCAL_STORAGE_CONFIG_KEY = "__config__";
     const EDIT_COUNTDOWN_TO_SAVE = 2;
     const GLOBAL_INTERVAL_MILLISECONDS = 1000;
 
@@ -48,7 +48,7 @@ const App = (function () {
     };
 
     const encrypt_string_to_base64 = async function(password, plaintext) {
-        // const sjcl_parameters = { mode: "gcm", ts: 128, adata: "secpad-auth", iter: 15000 };
+        // const sjcl_parameters = { mode: "gcm", ts: 128, adata: "blindturtle-auth", iter: 15000 };
         // return sjcl.encrypt(password, text, sjcl_parameters);
         let input_buffer = string_to_buffer(plaintext);
         return await encrypt_aes_gcm(password, input_buffer)
@@ -72,7 +72,7 @@ const App = (function () {
         const aes_param = { 
             name: "AES-GCM", 
             iv: iv,
-            additionalData: string_to_buffer("secpad-auth"), 
+            additionalData: string_to_buffer("blindturtle-auth"), 
             tagLength: 128,     // tag length in bits
             length: 256         // key length in bits
         };
