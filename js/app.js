@@ -472,7 +472,8 @@ const App = (function () {
     const InitController = function() {
         this.view = function(root) {
             render(root, render("nav", [
-                nav_button("Connect Github", e => push_nav(new ConnectGithubController())),
+                //nav_button("Connect Github", e => push_nav(new ConnectGithubController())),
+                nav_button("Connect AWS", e => push_nav(new ConnectAWS_S3_Controller())),
                 nav_button("About", e => push_nav(new AboutController()))
             ]));
         };
@@ -724,7 +725,7 @@ const App = (function () {
                 form_password({
                     placeholder: "Confirm Master Password",
                     validators: [new ConfirmIdenticalValuesValidator("#password", "Passwords do not match!")]}),
-                render("p", { className: "textblock" }, template("view_connect_github_text")),
+                render("p", { className: "textblock" }, template("view_master_password_text")),
                 form_input({
                     placeholder: "Github Username",
                     onchange: e => { config.username = e.target.value; },
@@ -737,6 +738,55 @@ const App = (function () {
                     placeholder: "Github Repo Name",
                     onchange: e => { config.reponame = e.target.value; },
                     validators: [new RequiredValidator("Github Repo Name is required.")]}),
+                render("p", { className: "textblock error" }));
+        };
+    };
+
+    const ConnectAWS_S3_Controller = function() {
+        let view_root = null;
+        let master_password = "";
+        let config = {
+            type: "aws_s3_iam",
+            region: "",
+            access_key_id: "",
+            access_key_secret: "",
+            bucket_name: ""
+        };
+        const authenticate_handler = function() {};
+        const cancel_handler = pop_nav;
+        this.view = function(root) {
+            view_root = root;
+            create_default_handlers(app_view_root, authenticate_handler, cancel_handler);
+            render(root,
+                render("nav", [
+                    nav_button("Authenticate", authenticate_handler),
+                    nav_button("Cancel", cancel_handler)]),
+                nav_spacer(),
+                form_password({
+                    id: "password",
+                    placeholder: "Master Password",
+                    autofocus: true,
+                    onchange: e => { master_password = e.target.value; }}),
+                form_password({
+                    placeholder: "Confirm Master Password",
+                    validators: [new ConfirmIdenticalValuesValidator("#password", "Passwords do not match!")]}),
+                render("p", { className: "textblock" }, template("view_master_password_text")),
+                form_input({
+                    placeholder: "Region",
+                    onchange: e => { config.region = e.target.value; },
+                    validators: [new RequiredValidator("Region is required.")]}),
+                form_input({
+                    placeholder: "Access Key ID",
+                    onchange: e => { config.access_key_id = e.target.value; },
+                    validators: [new RequiredValidator("Access Key ID is required.")]}),
+                form_password({
+                    placeholder: "Access Key Secret",
+                    onchange: e => { config.access_key_secret = e.target.value; },
+                    validators: [new RequiredValidator("Access Key Secret is required.")]}),
+                form_input({
+                    placeholder: "Bucket Name",
+                    onchange: e => { config.bucket_name = e.target.value; },
+                    validators: [new RequiredValidator("Bucket Name is required.")]}),
                 render("p", { className: "textblock error" }));
         };
     };
@@ -1212,5 +1262,7 @@ const App = (function () {
     } else {
         window.addEventListener("DOMContentLoaded", app_start);
     }
+
+ 
 
 })();

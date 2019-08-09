@@ -5,6 +5,7 @@
     <script defer src="lib/FileSaver.min.js"></script>
     <!-- <script defer src="lib/sjcl.js"></script> -->
     <script defer src="lib/stringview.js"></script>
+    <script defer src="https://sdk.amazonaws.com/js/aws-sdk-2.506.0.min.js"></script>
     <script defer src="js/app.js"></script>
 </head>
 <template id="view_about">
@@ -53,7 +54,7 @@
         By Eli Grey, <a href="http://eligrey.com">eligrey.com</a>
     </p>
 </template>
-<template id="view_connect_github_text">
+<template id="view_master_password_text">
     The master password will be used to encrypt your data and your local configuration. You can leave it
     blank, but then anyone will be able to read your private data.
     <span class="red">If you lose your master password, your data will be unretrievable.</span> Make sure your 
