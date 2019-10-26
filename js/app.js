@@ -473,7 +473,8 @@ const App = (function () {
         this.view = function(root) {
             render(root, render("nav", [
                 //nav_button("Connect Github", e => push_nav(new ConnectGithubController())),
-                nav_button("Connect AWS", e => push_nav(new ConnectAWS_S3_Controller())),
+                nav_button("Connect AWS S3", e => push_nav(new ConnectAWS_S3_Controller())),
+                nav_button("Deauthorize", e => {}),
                 nav_button("About", e => push_nav(new AboutController()))
             ]));
         };
@@ -752,14 +753,19 @@ const App = (function () {
             access_key_secret: "",
             bucket_name: ""
         };
-        const authenticate_handler = function() {};
+        const authenticate_handler = async function() {
+            clear_validation(view_root);
+            if (await validate(view_root)) {
+
+            }
+        };
         const cancel_handler = pop_nav;
         this.view = function(root) {
             view_root = root;
             create_default_handlers(app_view_root, authenticate_handler, cancel_handler);
             render(root,
                 render("nav", [
-                    nav_button("Authenticate", authenticate_handler),
+                    nav_button("Connect", authenticate_handler),
                     nav_button("Cancel", cancel_handler)]),
                 nav_spacer(),
                 form_password({
@@ -836,7 +842,7 @@ const App = (function () {
         let animation_item = animation_queue.find(item => item.el === el && item.prop_name === prop_name);
         
         // if not found, create a new animation_item
-        if (typeof animation_item === "undefined" || animation_item === null) {
+        if (!is_instantiated(animation_item)) {
             animation_item = {
                 el: el, 
                 prop_name: prop_name
@@ -853,7 +859,8 @@ const App = (function () {
 
         el.style[prop_name] = from;
 
-        if (animation_queue.length === 1) {
+        // animation loop is not running when animation_time is 0, so we should start it
+        if (animation_time === 0) {
             requestAnimationFrame(animation_loop);
         }
     };
