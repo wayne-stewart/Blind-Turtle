@@ -55,6 +55,17 @@ const Utility = (function() {
         }
     };
 
+    const ready = function(proc) {
+        if (is_function(proc))
+        {
+            if (document.readyState === "complete" || document.readyState === "loaded") {
+                proc();
+            } else {
+                window.addEventListener("DOMContentLoaded", proc);
+            }
+        }
+    };
+
     return {
          is_object          : is_object       
         ,is_function        : is_function     
@@ -86,6 +97,7 @@ const Utility = (function() {
         ,center             : center
         ,show               : show
         ,hide               : hide
+        ,ready              : ready
     };
 })();
 
