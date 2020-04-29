@@ -1,4 +1,3 @@
-
 const CryptoModule = (function(_){
 
     const concatenate_buffers = function(/* buffer list */) {

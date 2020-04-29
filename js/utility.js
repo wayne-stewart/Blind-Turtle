@@ -1,4 +1,3 @@
-
 const Utility = (function() {
     "use strict"
 

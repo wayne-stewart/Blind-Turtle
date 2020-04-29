@@ -1,4 +1,3 @@
-
 const Test = (function(){
     "use strict"
 
