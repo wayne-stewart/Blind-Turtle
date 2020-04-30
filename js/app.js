@@ -2,17 +2,14 @@ const App = (function (_, log, tests, crypto, UI, model) {
     "use strict"
 
     /* #region GLOBAL STATE */
-    const GITHUB_REPO_URL = "https://api.github.com/repos";
-    const LOCAL_STORAGE_CONFIG_KEY = "__config__";
     const EDIT_COUNTDOWN_TO_SAVE = 2;
     const GLOBAL_INTERVAL_MILLISECONDS = 1000;
 
     /* application state */
-    let docs = [],              // the current open documents
-        edit_countdown = 0,
+    let edit_countdown = 0,
         animation_queue = [],   // items that are currently animating
-        animation_time = 0,     // animation timestamp, 0 means animation not running
-        master_password = ""
+        animation_time = 0     // animation timestamp, 0 means animation not running
+        
     /* #endregion */
 
     /* #region ANIMATION  */

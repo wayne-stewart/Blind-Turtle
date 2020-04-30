@@ -2,11 +2,11 @@ const CryptoModule = (function(_){
 
     const concatenate_buffers = function(/* buffer list */) {
         let length = 0;
-        each(arguments, arg => { length += arg.byteLength; });
+        _.each(arguments, arg => { length += arg.byteLength; });
         let buffer = new ArrayBuffer(length);
         let buffer_view = new Uint8Array(buffer);
         let index = 0;
-        each(arguments, item => { for (let i = 0; i < item.length; i++) { 
+        _.each(arguments, item => { for (let i = 0; i < item.length; i++) { 
             buffer_view[index] = item[i];
             index++;
         }});
@@ -23,7 +23,7 @@ const CryptoModule = (function(_){
     const encrypt_string_to_base64 = async function(password, plaintext) {
         // const sjcl_parameters = { mode: "gcm", ts: 128, adata: "blindturtle-auth", iter: 15000 };
         // return sjcl.encrypt(password, text, sjcl_parameters);
-        let input_buffer = string_to_buffer(plaintext);
+        let input_buffer = _.string_to_buffer(plaintext);
         return await encrypt_aes_gcm(password, input_buffer)
             .then(output_buffer => StringView.bytesToBase64(new Uint8Array(output_buffer)));
     };
@@ -32,7 +32,7 @@ const CryptoModule = (function(_){
         // return sjcl.decrypt(password, cipher);
         let input_buffer = StringView.base64ToBytes(base64_data);
         return await decrypt_aes_gcm(password, input_buffer.buffer)
-            .then(output_buffer => buffer_to_string(output_buffer));
+            .then(output_buffer => _.buffer_to_string(output_buffer));
     };
 
     const create_encrypt_info = async function(password, iv, salt) {

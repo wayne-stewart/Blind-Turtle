@@ -1,4 +1,5 @@
 const UIRender_Version_1 = (function(_, model){
+    "use strict"
 
     let control_id = 100;
     let nav = []; // the navigation stack
@@ -161,7 +162,7 @@ const UIRender_Version_1 = (function(_, model){
             edit_countdown -= 1;
         }
         if (edit_countdown == 0) {
-            _.each(docs, async doc => {
+            _.each(model.docs, async doc => {
                 if (await doc.has_changed()) {
                     await doc.save_to_local_storage();
                 }
@@ -172,8 +173,8 @@ const UIRender_Version_1 = (function(_, model){
     const InitController = function() {
         this.view = function(root) {
             render(root, render("nav", [
-                //nav_button("Connect Github", e => push_nav(new ConnectGithubController())),
-                nav_button("Connect AWS S3", e => push_nav(new ConnectAWS_S3_Controller())),
+                nav_button("Connect Github", e => push_nav(new ConnectGithubController())),
+                //nav_button("Connect AWS S3", e => push_nav(new ConnectAWS_S3_Controller())),
                 nav_button("Deauthorize", e => {}),
                 nav_button("About", e => push_nav(new AboutController()))
             ]));
@@ -184,13 +185,13 @@ const UIRender_Version_1 = (function(_, model){
         let view_root = null;
         let password = "";
         const authenticate_handler = async function() {
-            set_master_password(password);
-            let config = await load_config();
+            model.set_master_password(password);
+            let config = await model.load_config();
             if (config) {
                 pop_nav_all();
                 push_nav(new MainController());
             } else {
-                query("p.error", view_root).innerHTML = "Authentication Failed";
+                _.query("p.error", view_root).innerHTML = "Authentication Failed";
             }
         };
         this.view = function(root) {
@@ -221,20 +222,20 @@ const UIRender_Version_1 = (function(_, model){
     const MainController = function() {
         let view_root = null;
         const render_editable_area = function() {
-            if (doc_exists()) {
-                return render("p", get_active_doc().get_text(), { 
+            if (model.doc_exists()) {
+                return render("p", model.get_active_doc().get_text(), { 
                     className: "editable", 
                     "contentEditable": true,
-                    onkeyup: e => { get_active_doc().set_text(e.target.innerHTML); }})
+                    onkeyup: e => { model.get_active_doc().set_text(e.target.innerHTML); }})
             } else {
                 return render("span");
             }
         };
         const render_file_names = function() {
-            if (doc_exists()) {
+            if (model.doc_exists()) {
                 const  tabs = [];
-                each(docs, doc => tabs.push(tab_button(doc.get_name(), doc.get_active(), e => { 
-                    set_active_doc(doc); render_view(view_root); })));
+                _.each(model.docs, doc => tabs.push(tab_button(doc.get_name(), doc.get_active(), e => { 
+                    model.set_active_doc(doc); render_view(view_root); })));
                 return render("div", tabs);
             } else {
                 return render("span");
@@ -254,7 +255,7 @@ const UIRender_Version_1 = (function(_, model){
                     ]),
                     render_file_names()
                 ]),
-                nav_spacer(doc_exists() ? 2 : 1),
+                nav_spacer(model.doc_exists() ? 2 : 1),
                 render_editable_area(),
                 render("div", { id: "popover_message" }));
         };
@@ -267,7 +268,7 @@ const UIRender_Version_1 = (function(_, model){
         const create_handler = async function() {
             clear_validation(view_root);
             if (await validate(view_root)) {
-                add_doc(file_name,""); 
+                model.add_doc(file_name,""); 
                 pop_nav();
             }
         };
@@ -313,7 +314,7 @@ const UIRender_Version_1 = (function(_, model){
                     try {
                         const cipher_text = file_reader.result;
                         const plain_text = await crypto.decrypt(password, cipher_text);
-                        add_doc(file.name, plain_text);
+                        model.add_doc(file.name, plain_text);
                         pop_nav();
                     }
                     catch(ex) {
@@ -343,13 +344,13 @@ const UIRender_Version_1 = (function(_, model){
 
     const SaveToLocalFileController = function() {
         let view_root = null;
-        let filename = get_active_doc().get_name();
+        let filename = model.get_active_doc().get_name();
         let password = "";
         let save_handler = async function() {
             clear_validation(view_root);
             try {
                 if (await validate(view_root)) {
-                    let doc = get_active_doc();
+                    let doc = model.get_active_doc();
                     let ciphertext = await crypto.encrypt(password, doc.get_text());
                     doc.set_name(filename);
                     let file = new File([ciphertext], doc.get_name(), { type: "text/plain; charset=utf-8" });
@@ -399,13 +400,13 @@ const UIRender_Version_1 = (function(_, model){
         const authenticate_handler = async function() {
             clear_validation(view_root);
             if (await validate(view_root)) {
-                if (await github_authenticate(config.username, config.password, config.reponame)) {
-                    set_master_password(master_password);
-                    await save_config(config);
+                if (await model.github_authenticate(config.username, config.password, config.reponame)) {
+                    model.set_master_password(master_password);
+                    await model.save_config(config);
                     pop_nav_all();
                     push_nav(new MainController());
                 } else {
-                    query("p.error", view_root).innerHTML = "Github Validation Failed";
+                    _.query("p.error", view_root).innerHTML = "Github Validation Failed";
                 }
             }
         };
@@ -422,7 +423,8 @@ const UIRender_Version_1 = (function(_, model){
                     id: "password",
                     placeholder: "Master Password",
                     autofocus: true,
-                    onchange: e => { master_password = e.target.value; }}),
+                    onchange: e => { master_password = e.target.value; },
+                    validators: [new RequiredValidator("Master Password is required.")]}),
                 form_password({
                     placeholder: "Confirm Master Password",
                     validators: [new ConfirmIdenticalValuesValidator("#password", "Passwords do not match!")]}),
@@ -432,11 +434,11 @@ const UIRender_Version_1 = (function(_, model){
                     onchange: e => { config.username = e.target.value; },
                     validators: [new RequiredValidator("Github Username is required.")]}),
                 form_password({
-                    placeholder: "Github Password",
+                    placeholder: "Github Personal Access Token",
                     onchange: e => { config.password = e.target.value; },
                     validators: [new RequiredValidator("Github Password is required.")]}),
                 form_input({
-                    placeholder: "Github Repo Name",
+                    placeholder: "Github Repository",
                     onchange: e => { config.reponame = e.target.value; },
                     validators: [new RequiredValidator("Github Repo Name is required.")]}),
                 render("p", { className: "textblock error" }));

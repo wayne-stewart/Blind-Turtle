@@ -1,4 +1,11 @@
-const Model = (function(_) {
+const Model = (function(_, crypto) {
+    "use strict"
+
+    const GITHUB_REPO_URL = "https://api.github.com/repos";
+    const LOCAL_STORAGE_CONFIG_KEY = "__config__";
+
+    let master_password;
+    let docs = [];              // the current open documents
 
     const config_exists = function() {
         for(let i = 0; i < localStorage.length; i++) {
@@ -38,7 +45,7 @@ const Model = (function(_) {
     
     const get_active_doc = function() {
         let active_doc = null;
-        each(docs, doc => { if (doc.get_active()) active_doc = doc; });
+        _.each(docs, doc => { if (doc.get_active()) active_doc = doc; });
         if (!_.is_instantiated(active_doc)) {
             active_doc = first(docs);
             if (_.is_instantiated(active_doc)) {
@@ -49,7 +56,7 @@ const Model = (function(_) {
     };
 
     const set_active_doc = function(doc) {
-        each(docs, doc => doc.set_active(false));
+        _.each(docs, doc => doc.set_active(false));
         doc.set_active(true);
     };
 
@@ -59,7 +66,7 @@ const Model = (function(_) {
 
     const add_doc = function(name, text) {
         docs.push(new DocModel(name, text));
-        set_active_doc(last(docs));
+        set_active_doc(_.last(docs));
     };
 
     const DocModel = function(name, text) {
@@ -140,7 +147,16 @@ const Model = (function(_) {
     };
 
     return {
-        config_exists: config_exists
+         config_exists: config_exists
+        ,load_config: load_config
+        ,doc_exists: doc_exists
+        ,add_doc: add_doc
+        ,github_authenticate: github_authenticate
+        ,set_master_password: set_master_password
+        ,save_config: save_config
+        ,docs: docs
+        ,get_active_doc: get_active_doc
+        ,set_active_doc: set_active_doc
     };
 
-})(Utility);
+})(Utility, CryptoModule);
