@@ -17,7 +17,7 @@ const CryptoModule = (function(_){
         argument[0]: string to be hashed
         returns: promise with arraybuffer as result*/
     const hash_string_sha256 = function(to_be_hashed) {
-        return crypto.subtle.digest("SHA-256", string_to_buffer(to_be_hashed))
+        return crypto.subtle.digest("SHA-256", _.string_to_buffer(to_be_hashed))
     };
 
     const encrypt_string_to_base64 = async function(password, plaintext) {
@@ -111,6 +111,7 @@ const CryptoModule = (function(_){
     return {
          encrypt: encrypt_string_to_base64
         ,decrypt: decrypt_base64_to_string
+        ,hash: hash_string_sha256
     };
 
 })(Utility);

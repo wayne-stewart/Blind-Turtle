@@ -1,9 +1,12 @@
 const Model = (function(_, crypto) {
     "use strict"
 
+    const EDIT_COUNTDOWN_TO_SAVE = 2;
+    const GLOBAL_INTERVAL_MILLISECONDS = 1000;
     const GITHUB_REPO_URL = "https://api.github.com/repos";
     const LOCAL_STORAGE_CONFIG_KEY = "__config__";
 
+    let edit_countdown = 0;
     let master_password;
     let docs = [];              // the current open documents
 
@@ -77,11 +80,11 @@ const Model = (function(_, crypto) {
         let _edit_dirty = false;
         let _saved_hash = null;
 
-        let _hash_text = async () => buffer_to_hex(await hash_string_sha256(_text));
+        let _hash_text = async () => _.buffer_to_hex(await crypto.hash(_text));
 
         this.set_name = name => _name = name;
         this.get_name = () => _name;
-        this.set_text = text => { _text = text; _edit_dirty = true; _text_loaded = true; }
+        this.set_text = text => { _text = text; _edit_dirty = true; _text_loaded = true; edit_countdown = EDIT_COUNTDOWN_TO_SAVE; }
         this.get_text = () => _text;
         this.set_active = active => _isactive = active;
         this.get_active = () => _isactive;
@@ -90,7 +93,7 @@ const Model = (function(_, crypto) {
         this.has_changed = async function() {
             if (_edit_dirty) {
                 const hash = await _hash_text();
-                if (_saved_hash === hash) {
+                if (_saved_hash !== hash) {
                     _edit_dirty = false;
                     return true;
                 }
@@ -103,11 +106,11 @@ const Model = (function(_, crypto) {
             if (password) {
                 let encrypted_text = await crypto.encrypt(password, _text);
                 localStorage.setItem(_name, encrypted_text);
-                show_saved_to_local_storage();
+                _.raise_event(document, EVENTS.LOCAL_SAVE,{});
             }
             else {
                 localStorage.setItem(_name, _text);
-                show_saved_to_local_storage();
+                _.raise_event(document, EVENTS.LOCAL_SAVE, {});
             }
             _edit_dirty = false;
             _saved_hash = await _hash_text();
@@ -146,6 +149,23 @@ const Model = (function(_, crypto) {
             });
     };
 
+    const interval_timer_callback = function() {
+        if (edit_countdown > 0) {
+            edit_countdown -= 1;
+        }
+        if (edit_countdown == 0) {
+            _.each(docs, async doc => {
+                if (await doc.has_changed()) {
+                    await doc.save_to_local_storage();
+                }
+            });
+        }
+    };
+
+    const EVENTS = {
+        LOCAL_SAVE: "_local_save_"
+    };
+
     return {
          config_exists: config_exists
         ,load_config: load_config
@@ -157,6 +177,10 @@ const Model = (function(_, crypto) {
         ,docs: docs
         ,get_active_doc: get_active_doc
         ,set_active_doc: set_active_doc
+        ,start: function(ui) {
+            setInterval(interval_timer_callback, GLOBAL_INTERVAL_MILLISECONDS);
+        }
+        ,EVENTS: EVENTS
     };
 
 })(Utility, CryptoModule);

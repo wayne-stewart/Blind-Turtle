@@ -19,6 +19,7 @@ const Utility = (function() {
     const query_all         = (selector, el) => is_instantiated(el) ? el.querySelectorAll(selector) : document.querySelectorAll(selector);
     const add_listener      = (el, event, listener) => el.addEventListener(event, listener, false);
     const remove_listener   = (el, event, listener) => el.removeEventListener(event, listener);
+    const raise_event       = (el, event_name, custom_init) =>  el.dispatchEvent(new CustomEvent(event_name, custom_init));
     const string_to_buffer  = string => (new TextEncoder()).encode(string).buffer;
     const buffer_to_string  = buffer => (new TextDecoder("utf-8", {fatal:true})).decode(buffer);
     const buffer_to_hex     = buffer => Array.prototype.map.call(new Uint8Array(buffer), x=>("00" + x.toString(16)).slice(-2)).join('');
@@ -31,7 +32,7 @@ const Utility = (function() {
 
     const center = function(el, center_on) {
         if (!is_instantiated(center_on)) {
-            center_on = app_view_root;
+            center_on = el.offsetParent;
         }
         el.style.top = center_on.style.top + center_on.clientHeight / 2 - el.clientHeight / 2;
         el.style.left = center_on.style.left + center_on.clientWidth / 2 - el.clientWidth / 2;
@@ -65,6 +66,7 @@ const Utility = (function() {
         }
     };
 
+
     return {
          is_object          : is_object       
         ,is_function        : is_function     
@@ -84,6 +86,7 @@ const Utility = (function() {
         ,query_all          : query_all       
         ,add_listener       : add_listener    
         ,remove_listener    : remove_listener 
+        ,raise_event        : raise_event
         ,string_to_buffer   : string_to_buffer
         ,buffer_to_string   : buffer_to_string
         ,buffer_to_hex      : buffer_to_hex   

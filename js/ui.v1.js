@@ -1,4 +1,4 @@
-const UIRender_Version_1 = (function(_, model){
+const UIRender_Version_1 = (function(_, model, animation){
     "use strict"
 
     let control_id = 100;
@@ -154,19 +154,6 @@ const UIRender_Version_1 = (function(_, model){
         if (_.is_function(el.default_keyup_handler)) {
             _.remove_listener(el, "keyup", el.default_keyup_handler);
             el.default_keyup_handler = null;
-        }
-    };
-
-    const interval_timer_callback = function() {
-        if (edit_countdown > 0) {
-            edit_countdown -= 1;
-        }
-        if (edit_countdown == 0) {
-            _.each(model.docs, async doc => {
-                if (await doc.has_changed()) {
-                    await doc.save_to_local_storage();
-                }
-            });
         }
     };
 
@@ -567,7 +554,19 @@ const UIRender_Version_1 = (function(_, model){
         };
     };
 
+    const show_popover_message = function(message, cssclass, duration) {
+        const el = _.query("#popover_message", app_view_root);
+        el.innerHTML = message;
+        el.className = cssclass;
+        _.show(el);
+        _.center(el);
+        // animate opacity from 1 to 0 over 1.5 seconds
+        animation.animate(el, "opacity", 1, 0, duration, animation.INTERPOLATERS.LERP_NUMBER, function(){ _.hide(el); });
+    };
 
+    const show_saved_to_local_storage = function() {
+        show_popover_message("Saved to Local Storage", "green", 1500);
+    };
 
     var _UI_ = function() {
         this.start = function() {
@@ -577,9 +576,10 @@ const UIRender_Version_1 = (function(_, model){
             } else {
                 push_nav(new InitController());
             }
+            _.add_listener(document, Model.EVENTS.LOCAL_SAVE, show_saved_to_local_storage);
         };
     };
 
     return _UI_;
 
-})(Utility, Model);
+})(Utility, Model, DomAnimator);
