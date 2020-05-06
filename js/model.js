@@ -106,11 +106,11 @@ const Model = (function(_, crypto) {
             if (password) {
                 let encrypted_text = await crypto.encrypt(password, _text);
                 localStorage.setItem(_name, encrypted_text);
-                _.raise_event(document, EVENTS.LOCAL_SAVE,{});
+                _.raise_event(document, EVENTS.LOCAL_SAVE);
             }
             else {
                 localStorage.setItem(_name, _text);
-                _.raise_event(document, EVENTS.LOCAL_SAVE, {});
+                _.raise_event(document, EVENTS.LOCAL_SAVE);
             }
             _edit_dirty = false;
             _saved_hash = await _hash_text();

@@ -11,6 +11,7 @@ const Utility = (function() {
     const is_array          = obj => (is_object(obj) && obj.constructor === Array);
     const swap              = (array, i, j) => { let temp = array[i]; array[i] = array[j]; array[j] = temp; };
     const each              = (array, callback) => { for (let i = 0; i < array.length; i++) callback(array[i], i, array); };
+    // this remove does not maintain array order!
     const remove            = (array, item) => { for(let i = 0; i < array.length; i++) { if (array[i] === item) { swap(array, i, array.length - 1);array.pop();}}};
     const skip              = (array, count) => array.slice(count);
     const first             = array => array[0];
@@ -19,7 +20,7 @@ const Utility = (function() {
     const query_all         = (selector, el) => is_instantiated(el) ? el.querySelectorAll(selector) : document.querySelectorAll(selector);
     const add_listener      = (el, event, listener) => el.addEventListener(event, listener, false);
     const remove_listener   = (el, event, listener) => el.removeEventListener(event, listener);
-    const raise_event       = (el, event_name, custom_init) =>  el.dispatchEvent(new CustomEvent(event_name, custom_init));
+    const raise_event       = (el, event_name, custom_init) =>  el.dispatchEvent(new CustomEvent(event_name, (is_instantiated(custom_init) ? custom_init : {})));
     const string_to_buffer  = string => (new TextEncoder()).encode(string).buffer;
     const buffer_to_string  = buffer => (new TextDecoder("utf-8", {fatal:true})).decode(buffer);
     const buffer_to_hex     = buffer => Array.prototype.map.call(new Uint8Array(buffer), x=>("00" + x.toString(16)).slice(-2)).join('');
@@ -66,6 +67,21 @@ const Utility = (function() {
         }
     };
 
+    const extend = function(base, extensions) {
+        if (is_instantiated(base)) {
+            if (is_array(extensions)) {
+                // not sure yet if I want to handle arrays as input to extend
+            }
+            else if (is_object(extensions)) {
+                for(let p in extensions) {
+                    if (extensions.hasOwnProperty(p)) {
+                        base[p] = extensions[p];
+                    }
+                }
+            }
+        }
+    };
+
 
     return {
          is_object          : is_object       
@@ -100,6 +116,7 @@ const Utility = (function() {
         ,show               : show
         ,hide               : hide
         ,ready              : ready
+        ,extend             : extend
     };
 })();
 
